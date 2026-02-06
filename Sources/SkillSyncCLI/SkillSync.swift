@@ -8,6 +8,7 @@ public struct SkillSync: AsyncParsableCommand {
     abstract: "Manage AI-agent skills from one canonical local store.",
     version: version,
     subcommands: [
+      AddCommand.self,
       InitCommand.self,
       NewCommand.self,
       SyncCommand.self,

@@ -65,28 +65,21 @@ public struct WriteFeature {
     try fileSystemClient.write(sourceData, destinationURL)
 
     let contentHash = try SkillContentHashFeature().run(skillDirectory: skillRoot)
-    try updateMetaContentHash(skillRoot: skillRoot, contentHash: contentHash)
+    try UpdateMetaFeature().run(
+      metaURL: skillRoot.appendingPathComponent(".meta.toml"),
+      updates: [
+        .init(
+          section: "skill",
+          key: "content-hash",
+          operation: .setString(contentHash)
+        )
+      ]
+    )
 
     return Result(
       destinationPath: input.destinationRelativePath,
       contentHash: contentHash
     )
-  }
-
-  private func updateMetaContentHash(skillRoot: URL, contentHash: String) throws {
-    let metaURL = skillRoot.appendingPathComponent(".meta.toml")
-    let metaData = try fileSystemClient.data(metaURL)
-    var meta = String(decoding: metaData, as: UTF8.self)
-    let lines = meta.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline)
-    if let index = lines.firstIndex(where: { $0.trimmingCharacters(in: .whitespaces).hasPrefix("content-hash = ") }) {
-      var mutable = lines.map(String.init)
-      mutable[index] = "content-hash = \"\(contentHash)\""
-      meta = mutable.joined(separator: "\n")
-    } else {
-      if !meta.hasSuffix("\n") { meta += "\n" }
-      meta += "content-hash = \"\(contentHash)\"\n"
-    }
-    try fileSystemClient.write(Data(meta.utf8), metaURL)
   }
 
   static func validate(destinationRelativePath path: String) throws {

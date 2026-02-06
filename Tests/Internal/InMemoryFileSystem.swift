@@ -49,8 +49,16 @@ public final class InMemoryFileSystem: Sendable {
           state.files[normalized] != nil || state.directories.contains(normalized)
         }
       },
+      isDirectory: { [state] path in
+        state.withValue { state in
+          state.directories.contains(normalize(path))
+        }
+      },
       createDirectory: { url, withIntermediateDirectories in
         try fileSystem.createDirectory(at: url, withIntermediateDirectories: withIntermediateDirectories)
+      },
+      contentsOfDirectory: { url in
+        try fileSystem.contentsOfDirectory(at: url)
       },
       write: { data, url in
         try fileSystem.write(data, to: url)
@@ -115,6 +123,45 @@ public final class InMemoryFileSystem: Sendable {
         throw Error.fileNotFound(path)
       }
       return data
+    }
+  }
+
+  public func contentsOfDirectory(at url: URL) throws -> [URL] {
+    let directory = normalize(url)
+    return try state.withValue { state in
+      if state.files[directory] != nil {
+        throw Error.notDirectory(directory)
+      }
+      guard state.directories.contains(directory) else {
+        throw Error.directoryNotFound(directory)
+      }
+
+      var children: Set<String> = []
+
+      let prefix = directory == "/" ? "/" : directory + "/"
+      for childDirectory in state.directories where childDirectory.hasPrefix(prefix) {
+        let suffix = String(childDirectory.dropFirst(prefix.count))
+        guard !suffix.isEmpty else { continue }
+        if !suffix.contains("/") {
+          children.insert(prefix + suffix)
+        } else if let firstComponent = suffix.split(separator: "/").first {
+          children.insert(prefix + firstComponent)
+        }
+      }
+
+      for file in state.files.keys where file.hasPrefix(prefix) {
+        let suffix = String(file.dropFirst(prefix.count))
+        guard !suffix.isEmpty else { continue }
+        if !suffix.contains("/") {
+          children.insert(prefix + suffix)
+        } else if let firstComponent = suffix.split(separator: "/").first {
+          children.insert(prefix + firstComponent)
+        }
+      }
+
+      return children
+        .sorted()
+        .map { URL(filePath: $0) }
     }
   }
 }

@@ -9,6 +9,7 @@ public struct SkillSync: AsyncParsableCommand {
     version: version,
     subcommands: [
       InitCommand.self,
+      SyncCommand.self,
       VersionCommand.self,
     ]
   )

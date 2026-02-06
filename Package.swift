@@ -14,6 +14,7 @@ let package = Package(
   ],
   dependencies: [
     .package(url: "https://github.com/apple/swift-argument-parser", from: "1.5.0"),
+    .package(url: "https://github.com/pointfreeco/swift-concurrency-extras", from: "1.0.0"),
     .package(url: "https://github.com/pointfreeco/swift-custom-dump", from: "1.0.0"),
     .package(url: "https://github.com/pointfreeco/swift-dependencies", from: "1.0.0"),
     .package(url: "https://github.com/pointfreeco/swift-snapshot-testing", from: "1.18.9"),
@@ -49,24 +50,17 @@ let package = Package(
       ]
     ),
     .testTarget(
-      name: "SkillSyncCLITests",
+      name: "SkillSyncTests",
       dependencies: [
         "SkillSyncCLI",
+        "SkillSyncCore",
+        .product(name: "ConcurrencyExtras", package: "swift-concurrency-extras"),
         .product(name: "CustomDump", package: "swift-custom-dump"),
         .product(name: "Dependencies", package: "swift-dependencies"),
         .product(name: "DependenciesTestSupport", package: "swift-dependencies"),
         .product(name: "InlineSnapshotTesting", package: "swift-snapshot-testing"),
       ],
-      swiftSettings: [
-        .enableUpcomingFeature("NonisolatedNonsendingByDefault")
-      ]
-    ),
-    .testTarget(
-      name: "SkillSyncCoreTests",
-      dependencies: [
-        "SkillSyncCore",
-        .product(name: "CustomDump", package: "swift-custom-dump"),
-      ],
+      path: "Tests",
       swiftSettings: [
         .enableUpcomingFeature("NonisolatedNonsendingByDefault")
       ]

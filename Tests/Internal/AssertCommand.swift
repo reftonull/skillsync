@@ -16,6 +16,7 @@ import SkillSyncCore
 func assertCommand(
   _ arguments: [String],
   stdout expected: (() -> String)? = nil,
+  dependencies updateDependencies: @escaping (inout DependencyValues) throws -> Void = { _ in },
   fileID: StaticString = #fileID,
   file: StaticString = #filePath,
   line: UInt = #line,
@@ -23,6 +24,7 @@ func assertCommand(
 ) async throws {
   let output = try await withCapturedStdout {
     try await withDependencies {
+      try updateDependencies(&$0)
       $0.outputClient = OutputClient(
         stdout: { Swift.print($0) },
         stderr: { Swift.print($0) }
@@ -51,6 +53,7 @@ func assertCommand(
 func assertCommandThrows(
   _ arguments: [String],
   error expected: (() -> String)? = nil,
+  dependencies updateDependencies: @escaping (inout DependencyValues) throws -> Void = { _ in },
   fileID: StaticString = #fileID,
   file: StaticString = #filePath,
   line: UInt = #line,
@@ -58,11 +61,15 @@ func assertCommandThrows(
 ) async {
   var thrownError: Error?
   do {
-    var command = try SkillSync.parseAsRoot(arguments)
-    if var command = command as? AsyncParsableCommand {
-      try await command.run()
-    } else {
-      try command.run()
+    try await withDependencies {
+      try updateDependencies(&$0)
+    } operation: {
+      var command = try SkillSync.parseAsRoot(arguments)
+      if var command = command as? AsyncParsableCommand {
+        try await command.run()
+      } else {
+        try command.run()
+      }
     }
   } catch {
     thrownError = error

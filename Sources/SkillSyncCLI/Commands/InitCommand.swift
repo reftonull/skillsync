@@ -12,6 +12,11 @@ public struct InitCommand: AsyncParsableCommand {
 
   public mutating func run() async throws {
     @Dependency(\.outputClient) var outputClient
-    outputClient.stdout("Scaffold only: 'skillsync init' is not implemented yet.")
+    let result = try InitFeature().run()
+    if result.createdConfig {
+      outputClient.stdout("Initialized skillsync store at \(result.storeRoot.path)")
+    } else {
+      outputClient.stdout("skillsync store already initialized at \(result.storeRoot.path)")
+    }
   }
 }

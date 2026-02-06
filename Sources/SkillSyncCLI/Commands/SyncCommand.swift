@@ -14,14 +14,20 @@ public struct SyncCommand: AsyncParsableCommand {
   @Option(name: .long, help: "Explicit path to sync to (repeatable).")
   public var path: [String] = []
 
+  @Flag(name: .long, help: "Resolve project-local tool paths by finding the project root.")
+  public var project = false
+
   public init() {}
 
   public mutating func run() async throws {
     @Dependency(\.outputClient) var outputClient
+    let configuredTools = try LoadSyncConfigFeature().run().configuredTools
     let result = try ResolveSyncDestinationsFeature().run(
       .init(
         tools: self.tool,
-        paths: self.path
+        paths: self.path,
+        project: self.project,
+        configuredTools: configuredTools
       )
     )
 

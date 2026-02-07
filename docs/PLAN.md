@@ -27,6 +27,7 @@ Status key:
 - `done` Remove `skillsync write` command/feature/tests and migrate remaining setup paths
 - `done` Move docs to tracked `docs/` directory and align workflow terminology
 - `done` Implement `skillsync diff <name>` with JSON default output (no `--json` flag)
+- `done` Implement `skillsync info <name>` with TDD (core + CLI tests)
 
 ## Milestones
 
@@ -63,7 +64,7 @@ Status key:
 
 5. Observe + Refine
 - `todo` `skillsync observe <name> --signal <positive|negative> [--note]`
-- `todo` `skillsync info <name>` (version, hash, stats, state)
+- `done` `skillsync info <name>` (version, hash, stats, state)
 - `todo` `skillsync log <name>` / `--summary`
 - `todo` Observation footer shows stats + refinement suggestion when underperforming
 - `note` Refinement uses existing `edit` -> `commit` -> `sync` path with user consent

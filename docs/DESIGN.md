@@ -103,6 +103,7 @@ skillsync target remove <id>
 skillsync target list
 skillsync sync
 skillsync diff <name>   # JSON output by default (no --json flag)
+skillsync info <name>
 skillsync export <name> <path>
 skillsync version
 ```
@@ -112,12 +113,11 @@ Planned next:
 ```
 skillsync config
 skillsync observe <name> --signal <positive|negative> [--note "..."]
-skillsync info <name>
 skillsync log <name>
 skillsync log <name> --summary
 ```
 
-Planned output shape for `skillsync info <name>`:
+Output shape for `skillsync info <name>`:
 
 ```
 pdf

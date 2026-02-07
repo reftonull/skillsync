@@ -21,13 +21,13 @@ Build a local-first CLI that:
 
 Implemented:
 
-1. `init`, `new`, `add`, `rm`, `ls`, `export`, `sync`, `target add/remove/list`, `version`, `diff`.
+1. `init`, `new`, `add`, `rm`, `ls`, `export`, `sync`, `target add/remove/list`, `version`, `diff`, `info`.
 2. Single-editor workflow: `edit`, `edit --force`, `commit`, `abort` with per-skill lock files.
 3. Commit updates canonical files, bumps `version`, updates `content-hash`, and cleans `editing/<skill>`.
 
 Planned:
 
-1. `observe`, `info`, `log`.
+1. `observe`, `log`.
 2. Commit reason persistence into optional refinement/change history.
 3. Global locking and stricter atomic-write guarantees.
 
@@ -268,7 +268,11 @@ Keep a separate integration layer for real symlink and lock behavior using temp 
 9. `skillsync ls`
 - Print skills, state, and summary stats.
 
-10. `skillsync export <name> <path>`
+10. `skillsync info <name>`
+- Print metadata from `.meta.toml`:
+  - version, state, content-hash, created, source, invocation totals.
+
+11. `skillsync export <name> <path>`
 - Copy canonical skill to external path.
 
 ### Target management + sync
@@ -494,8 +498,7 @@ Match pfw style by injecting output dependencies instead of writing directly to 
 Recommended immediate slice from current baseline:
 
 1. Implement `skillsync observe <name> --signal <positive|negative> [--note]`.
-2. Implement `skillsync info <name>` from `.meta.toml`.
-3. Implement `skillsync log <name>` and `skillsync log <name> --summary`.
-4. Persist commit reason into optional refinement/change history once observe/info/log are stable.
+2. Implement `skillsync log <name>` and `skillsync log <name> --summary`.
+3. Persist commit reason into optional refinement/change history once observe/log are stable.
 
 Deliverable: complete edit lifecycle (`edit`, `diff`, `commit`, `abort`) with metadata trail and no stale write path dependence.

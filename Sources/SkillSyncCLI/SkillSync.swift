@@ -18,6 +18,7 @@ public struct SkillSync: AsyncParsableCommand {
       InitCommand.self,
       LsCommand.self,
       NewCommand.self,
+      ObserveCommand.self,
       RmCommand.self,
       SyncCommand.self,
       TargetCommand.self,

@@ -105,6 +105,8 @@ skillsync sync
 skillsync diff <name>   # JSON output by default (no --json flag)
 skillsync info <name>
 skillsync observe <name> --signal <positive|negative> [--note "..."]
+skillsync log <name>
+skillsync log <name> --summary
 skillsync export <name> <path>
 skillsync version
 ```
@@ -113,8 +115,6 @@ Planned next:
 
 ```
 skillsync config
-skillsync log <name>
-skillsync log <name> --summary
 ```
 
 Output shape for `skillsync info <name>`:
@@ -129,13 +129,19 @@ pdf
   invocations: 12 (positive: 7, negative: 5)
 ```
 
-Planned output shape for `skillsync log <name> --summary`:
+Output shape for `skillsync log <name> --summary`:
 
 ```
 pdf: 12 invocations, 7 positive, 5 negative (58%)
 ```
 
-Planned output shape for `skillsync log <name>`:
+For zero observations:
+
+```
+pdf: 0 invocations
+```
+
+Output shape for `skillsync log <name>`:
 
 ```text
 2026-02-07T10:15:00Z  positive  "Handled encrypted input well"

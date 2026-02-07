@@ -21,12 +21,12 @@ public struct AbortFeature {
   }
 
   public enum Error: Swift.Error, Equatable, CustomStringConvertible {
-    case lockNotHeld(name: String, lockFile: String)
+    case noActiveEdit(name: String)
 
     public var description: String {
       switch self {
-      case let .lockNotHeld(name, lockFile):
-        return "No active edit lock for '\(name)'. Lock file: \(lockFile)"
+      case let .noActiveEdit(name):
+        return "No active edit session for '\(name)'. Nothing to abort."
       }
     }
   }
@@ -46,7 +46,7 @@ public struct AbortFeature {
       .appendingPathComponent("\(input.name).lock")
 
     guard fileSystemClient.fileExists(lockFile.path) else {
-      throw Error.lockNotHeld(name: input.name, lockFile: lockFile.path)
+      throw Error.noActiveEdit(name: input.name)
     }
 
     let removedEditCopy = fileSystemClient.fileExists(editRoot.path)

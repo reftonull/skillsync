@@ -7,91 +7,32 @@ import SkillSyncCore
 
 extension BaseSuite {
   @Suite
-  struct EditCommandTests {
+  struct LogCommandTests {
     @Test
-    func preparesEditingWorkspace() async throws {
+    func throwsWhenSkillMissing() async {
       let fileSystem = InMemoryFileSystem(
         homeDirectoryForCurrentUser: URL(filePath: "/Users/blob", directoryHint: .isDirectory)
-      )
-
-      let deps: (inout DependencyValues) throws -> Void = {
-        $0.pathClient = PathClient(
-          homeDirectory: { fileSystem.homeDirectoryForCurrentUser },
-          currentDirectory: { URL(filePath: "/Users/blob/project", directoryHint: .isDirectory) }
-        )
-        $0.fileSystemClient = fileSystem.client
-        $0.date.now = Date(timeIntervalSince1970: 1_738_800_000)
-      }
-
-      try await assertCommand(
-        ["new", "pdf"],
-        stdout: {
-          """
-          Created skill pdf at /Users/blob/.skillsync/skills/pdf
-          """
-        },
-        dependencies: deps
-      )
-
-      try await assertCommand(
-        ["edit", "pdf"],
-        stdout: {
-          """
-          Editing skill pdf at /Users/blob/.skillsync/editing/pdf
-          """
-        },
-        dependencies: deps
-      )
-    }
-
-    @Test
-    func reportsLockConflict() async throws {
-      let fileSystem = InMemoryFileSystem(
-        homeDirectoryForCurrentUser: URL(filePath: "/Users/blob", directoryHint: .isDirectory)
-      )
-
-      let deps: (inout DependencyValues) throws -> Void = {
-        $0.pathClient = PathClient(
-          homeDirectory: { fileSystem.homeDirectoryForCurrentUser },
-          currentDirectory: { URL(filePath: "/Users/blob/project", directoryHint: .isDirectory) }
-        )
-        $0.fileSystemClient = fileSystem.client
-        $0.date.now = Date(timeIntervalSince1970: 1_738_800_000)
-      }
-
-      try await assertCommand(
-        ["new", "pdf"],
-        stdout: {
-          """
-          Created skill pdf at /Users/blob/.skillsync/skills/pdf
-          """
-        },
-        dependencies: deps
-      )
-
-      try await assertCommand(
-        ["edit", "pdf"],
-        stdout: {
-          """
-          Editing skill pdf at /Users/blob/.skillsync/editing/pdf
-          """
-        },
-        dependencies: deps
       )
 
       await assertCommandThrows(
-        ["edit", "pdf"],
+        ["log", "missing"],
         error: {
           """
-          Skill 'pdf' is already being edited. Use --force to override.
+          Skill 'missing' not found.
           """
         },
-        dependencies: deps
+        dependencies: {
+          $0.pathClient = PathClient(
+            homeDirectory: { fileSystem.homeDirectoryForCurrentUser },
+            currentDirectory: { URL(filePath: "/Users/blob/project", directoryHint: .isDirectory) }
+          )
+          $0.fileSystemClient = fileSystem.client
+        }
       )
     }
 
     @Test
-    func forceTakesOverLockedEdit() async throws {
+    func printsNoLinesForSkillWithNoObservations() async throws {
       let fileSystem = InMemoryFileSystem(
         homeDirectoryForCurrentUser: URL(filePath: "/Users/blob", directoryHint: .isDirectory)
       )
@@ -102,7 +43,6 @@ extension BaseSuite {
           currentDirectory: { URL(filePath: "/Users/blob/project", directoryHint: .isDirectory) }
         )
         $0.fileSystemClient = fileSystem.client
-        $0.date.now = Date(timeIntervalSince1970: 1_738_800_000)
       }
 
       try await assertCommand(
@@ -112,36 +52,120 @@ extension BaseSuite {
           Created skill pdf at /Users/blob/.skillsync/skills/pdf
           """
         },
-        dependencies: deps
+        dependencies: {
+          try deps(&$0)
+          $0.date.now = Date(timeIntervalSince1970: 1_738_800_000)
+        }
       )
 
       try await assertCommand(
-        ["edit", "pdf"],
+        ["log", "pdf"],
+        stdout: { "" },
+        dependencies: deps
+      )
+    }
+
+    @Test
+    func printsSummaryForSkillWithNoObservations() async throws {
+      let fileSystem = InMemoryFileSystem(
+        homeDirectoryForCurrentUser: URL(filePath: "/Users/blob", directoryHint: .isDirectory)
+      )
+
+      let deps: (inout DependencyValues) throws -> Void = {
+        $0.pathClient = PathClient(
+          homeDirectory: { fileSystem.homeDirectoryForCurrentUser },
+          currentDirectory: { URL(filePath: "/Users/blob/project", directoryHint: .isDirectory) }
+        )
+        $0.fileSystemClient = fileSystem.client
+      }
+
+      try await assertCommand(
+        ["new", "pdf"],
         stdout: {
           """
-          Editing skill pdf at /Users/blob/.skillsync/editing/pdf
+          Created skill pdf at /Users/blob/.skillsync/skills/pdf
+          """
+        },
+        dependencies: {
+          try deps(&$0)
+          $0.date.now = Date(timeIntervalSince1970: 1_738_800_000)
+        }
+      )
+
+      try await assertCommand(
+        ["log", "pdf", "--summary"],
+        stdout: {
+          """
+          pdf: 0 invocations
           """
         },
         dependencies: deps
       )
+    }
 
+    @Test
+    func printsHistoryAndSummary() async throws {
+      let fileSystem = InMemoryFileSystem(
+        homeDirectoryForCurrentUser: URL(filePath: "/Users/blob", directoryHint: .isDirectory)
+      )
+
+      let deps: (inout DependencyValues) throws -> Void = {
+        $0.pathClient = PathClient(
+          homeDirectory: { fileSystem.homeDirectoryForCurrentUser },
+          currentDirectory: { URL(filePath: "/Users/blob/project", directoryHint: .isDirectory) }
+        )
+        $0.fileSystemClient = fileSystem.client
+      }
+
+      try await assertCommand(
+        ["new", "pdf"],
+        stdout: {
+          """
+          Created skill pdf at /Users/blob/.skillsync/skills/pdf
+          """
+        },
+        dependencies: {
+          try deps(&$0)
+          $0.date.now = Date(timeIntervalSince1970: 1_738_800_000)
+        }
+      )
+
+      try fileSystem.createDirectory(
+        at: URL(filePath: "/Users/blob/.skillsync/logs", directoryHint: .isDirectory),
+        withIntermediateDirectories: true
+      )
       try fileSystem.write(
-        Data("# pdf\n\nnew canonical\n".utf8),
-        to: URL(filePath: "/Users/blob/.skillsync/skills/pdf/SKILL.md")
+        Data(
+          """
+          {"ts":"2026-02-07T10:15:00Z","signal":"positive","version":3,"note":"Handled encrypted input well"}
+          {"ts":"2026-02-07T11:30:00Z","signal":"negative","version":3,"note":"Failed on multi-page PDF"}
+          {"ts":"2026-02-07T12:00:00Z","signal":"positive","version":3}
+          """.utf8
+        ),
+        to: URL(filePath: "/Users/blob/.skillsync/logs/pdf.jsonl")
       )
 
       try await assertCommand(
-        ["edit", "pdf", "--force"],
+        ["log", "pdf"],
         stdout: {
           """
-          Editing skill pdf at /Users/blob/.skillsync/editing/pdf
+          2026-02-07T10:15:00Z  positive  "Handled encrypted input well"
+          2026-02-07T11:30:00Z  negative  "Failed on multi-page PDF"
+          2026-02-07T12:00:00Z  positive
           """
         },
         dependencies: deps
       )
 
-      let edited = try fileSystem.data(at: URL(filePath: "/Users/blob/.skillsync/editing/pdf/SKILL.md"))
-      #expect(String(decoding: edited, as: UTF8.self).contains("new canonical"))
+      try await assertCommand(
+        ["log", "pdf", "--summary"],
+        stdout: {
+          """
+          pdf: 3 invocations, 2 positive, 1 negative (33% negative)
+          """
+        },
+        dependencies: deps
+      )
     }
   }
 }

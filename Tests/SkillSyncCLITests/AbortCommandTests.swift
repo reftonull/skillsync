@@ -72,7 +72,7 @@ extension BaseSuite {
         ["abort", "pdf"],
         error: {
           """
-          No active edit lock for 'pdf'. Lock file: /Users/blob/.skillsync/locks/pdf.lock
+          No active edit session for 'pdf'. Nothing to abort.
           """
         },
         dependencies: deps

@@ -160,7 +160,7 @@ struct EditFeatureTests {
       to: URL(filePath: "/Users/blob/.skillsync/locks/pdf.lock")
     )
 
-    #expect(throws: EditFeature.Error.lockAlreadyHeld(name: "pdf", lockFile: "/Users/blob/.skillsync/locks/pdf.lock")) {
+    #expect(throws: EditFeature.Error.alreadyBeingEdited(name: "pdf")) {
       try withDependencies {
         $0.pathClient = PathClient(
           homeDirectory: { fileSystem.homeDirectoryForCurrentUser },

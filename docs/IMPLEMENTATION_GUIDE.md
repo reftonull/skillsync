@@ -21,15 +21,14 @@ Build a local-first CLI that:
 
 Implemented:
 
-1. `init`, `new`, `add`, `rm`, `ls`, `export`, `sync`, `target add/remove/list`, `version`, `diff`, `info`, `observe`.
+1. `init`, `new`, `add`, `rm`, `ls`, `export`, `sync`, `target add/remove/list`, `version`, `diff`, `info`, `observe`, `log`.
 2. Single-editor workflow: `edit`, `edit --force`, `commit`, `abort` with per-skill lock files.
 3. Commit updates canonical files, bumps `version`, updates `content-hash`, and cleans `editing/<skill>`.
 
 Planned:
 
-1. `log`.
-2. Commit reason persistence into optional refinement/change history.
-3. Global locking and stricter atomic-write guarantees.
+1. Commit reason persistence into optional refinement/change history.
+2. Global locking and stricter atomic-write guarantees.
 
 ## Swift Stack
 
@@ -379,8 +378,9 @@ Split rationale: `skillsync-check` is cheap/read-only and surfaces status, while
   - `  invocations: 12 (positive: 7, negative: 5)`
 
 3. `skillsync log <name> --summary`
-- Print one-line usage summary.
+- Print one-line usage summary from JSONL history (not from `.meta.toml` counters).
 - Example: `pdf: 12 invocations, 7 positive, 5 negative (58%)`
+- Zero-observation case: `pdf: 0 invocations`
 
 4. `skillsync log <name>`
 - Print full observation history.
@@ -524,7 +524,8 @@ Match pfw style by injecting output dependencies instead of writing directly to 
 
 Recommended immediate slice from current baseline:
 
-1. Implement `skillsync log <name>` and `skillsync log <name> --summary`.
-2. Persist commit reason into optional refinement/change history once observe/log are stable.
+1. Implement built-in skill rendering in sync (`skillsync-new`, `skillsync-check`, `skillsync-refine`).
+2. Author built-in skill content (`SKILL.md` for each built-in) with progressive disclosure.
+3. Persist commit reason into optional refinement/change history now that observe/log are stable.
 
 Deliverable: complete edit lifecycle (`edit`, `diff`, `commit`, `abort`) with metadata trail and no stale write path dependence.

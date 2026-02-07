@@ -29,6 +29,7 @@ Status key:
 - `done` Implement `skillsync diff <name>` with JSON default output (no `--json` flag)
 - `done` Implement `skillsync info <name>` with TDD (core + CLI tests)
 - `done` Implement `skillsync observe <name> --signal <positive|negative> [--note]` with TDD (core + CLI tests)
+- `done` Implement `skillsync log <name> [--summary]` with TDD (core + CLI tests)
 
 ## Milestones
 
@@ -69,7 +70,7 @@ Status key:
 5. Observe + Refine
 - `done` `skillsync observe <name> --signal <positive|negative> [--note]`
 - `done` `skillsync info <name>` (version, hash, stats, state)
-- `todo` `skillsync log <name>` / `--summary`
+- `done` `skillsync log <name>` / `--summary`
 - `done` Observation footer injects static observe reminder when mode is `on`
 - `note` Refinement uses existing `edit` -> `commit` -> `sync` path with user consent
 

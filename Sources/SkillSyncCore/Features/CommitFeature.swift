@@ -27,7 +27,7 @@ public struct CommitFeature {
   public enum Error: Swift.Error, Equatable, CustomStringConvertible {
     case skillNotFound(String)
     case editCopyNotFound(String)
-    case lockNotHeld(name: String, lockFile: String)
+    case noActiveEdit(name: String)
     case reservedPath(String)
 
     public var description: String {
@@ -36,8 +36,8 @@ public struct CommitFeature {
         return "Skill '\(name)' not found."
       case let .editCopyNotFound(name):
         return "No active edit copy for skill '\(name)'. Run `skillsync edit \(name)` first."
-      case let .lockNotHeld(name, lockFile):
-        return "No active edit lock for '\(name)'. Lock file: \(lockFile)"
+      case let .noActiveEdit(name):
+        return "No active edit session for '\(name)'. Run 'skillsync edit \(name)' first."
       case let .reservedPath(path):
         return "Path '\(path)' is reserved and cannot be committed."
       }
@@ -64,7 +64,7 @@ public struct CommitFeature {
       .appendingPathComponent("\(input.name).lock")
 
     guard fileSystemClient.fileExists(lockFile.path) else {
-      throw Error.lockNotHeld(name: input.name, lockFile: lockFile.path)
+      throw Error.noActiveEdit(name: input.name)
     }
     guard fileSystemClient.fileExists(canonicalRoot.path), fileSystemClient.isDirectory(canonicalRoot.path) else {
       throw Error.skillNotFound(input.name)

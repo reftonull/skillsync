@@ -59,7 +59,7 @@ struct AbortFeatureTests {
       homeDirectoryForCurrentUser: URL(filePath: "/Users/blob", directoryHint: .isDirectory)
     )
 
-    #expect(throws: AbortFeature.Error.lockNotHeld(name: "pdf", lockFile: "/Users/blob/.skillsync/locks/pdf.lock")) {
+    #expect(throws: AbortFeature.Error.noActiveEdit(name: "pdf")) {
       try withDependencies {
         $0.pathClient = PathClient(
           homeDirectory: { fileSystem.homeDirectoryForCurrentUser },

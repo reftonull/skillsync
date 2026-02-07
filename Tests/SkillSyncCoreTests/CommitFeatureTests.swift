@@ -91,7 +91,7 @@ struct CommitFeatureTests {
       homeDirectoryForCurrentUser: URL(filePath: "/Users/blob", directoryHint: .isDirectory)
     )
 
-    #expect(throws: CommitFeature.Error.lockNotHeld(name: "pdf", lockFile: "/Users/blob/.skillsync/locks/pdf.lock")) {
+    #expect(throws: CommitFeature.Error.noActiveEdit(name: "pdf")) {
       try withDependencies {
         $0.pathClient = PathClient(
           homeDirectory: { fileSystem.homeDirectoryForCurrentUser },

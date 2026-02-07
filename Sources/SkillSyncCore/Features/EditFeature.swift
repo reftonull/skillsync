@@ -26,14 +26,14 @@ public struct EditFeature {
 
   public enum Error: Swift.Error, Equatable, CustomStringConvertible {
     case skillNotFound(String)
-    case lockAlreadyHeld(name: String, lockFile: String)
+    case alreadyBeingEdited(name: String)
 
     public var description: String {
       switch self {
       case let .skillNotFound(name):
         return "Skill '\(name)' not found."
-      case let .lockAlreadyHeld(name, lockFile):
-        return "Skill '\(name)' is already being edited. Lock file: \(lockFile)"
+      case let .alreadyBeingEdited(name):
+        return "Skill '\(name)' is already being edited. Use --force to override."
       }
     }
   }
@@ -60,7 +60,7 @@ public struct EditFeature {
 
     if fileSystemClient.fileExists(lockFile.path) {
       guard input.force else {
-        throw Error.lockAlreadyHeld(name: input.name, lockFile: lockFile.path)
+        throw Error.alreadyBeingEdited(name: input.name)
       }
       try fileSystemClient.removeItem(lockFile)
     }

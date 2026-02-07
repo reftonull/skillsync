@@ -25,8 +25,6 @@ extension BaseSuite {
 
           [observation]
           mode = "off"
-          threshold = 0.3
-          min_invocations = 5
 
           [[targets]]
           id = "codex"
@@ -71,8 +69,6 @@ extension BaseSuite {
 
           [observation]
           mode = "off"
-          threshold = 0.3
-          min_invocations = 5
 
           [[targets]]
           id = "codex"

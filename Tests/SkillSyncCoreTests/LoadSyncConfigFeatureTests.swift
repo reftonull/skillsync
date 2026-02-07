@@ -190,8 +190,6 @@ struct LoadSyncConfigFeatureTests {
         """
         [observation]
         mode = "off"
-        threshold = 0.45
-        min_invocations = 9
         """.utf8
       ),
       atPath: "/Users/blob/.skillsync/config.toml"
@@ -226,9 +224,7 @@ struct LoadSyncConfigFeatureTests {
       Data(
         """
         [observation]
-        mode = "remind"
-        threshold = 0.45
-        min_invocations = 9
+        mode = "invalid"
         """.utf8
       ),
       atPath: "/Users/blob/.skillsync/config.toml"

@@ -132,7 +132,7 @@ pdf
 Output shape for `skillsync log <name> --summary`:
 
 ```
-pdf: 12 invocations, 7 positive, 5 negative (58%)
+pdf: 12 invocations, 7 positive, 5 negative (42% negative)
 ```
 
 For zero observations:
@@ -197,13 +197,17 @@ Workflow:
 Lock behavior:
 
 1. Only one editor can hold a skill lock at a time.
-2. `skillsync edit <name>` fails with lock file path if lock already exists.
+2. `skillsync edit <name>` reports that the skill is already being edited and suggests `--force`.
 3. `skillsync edit <name> --force` is the explicit stale-lock takeover path.
 4. `skillsync abort <name>` or `skillsync commit <name>` releases the lock.
 
 ## Built-in Skills
 
-`skillsync sync` installs built-in skills alongside user skills for every configured target. These built-ins are authored as part of the SkillSync codebase (not user-authored) and are installed as skill directories such as:
+Built-ins are seeded by `skillsync init` into canonical `~/.skillsync/skills/` from bundled templates.
+They are first-class skills, so they can be edited/refined through the same `edit -> diff -> commit` workflow as user-authored skills.
+During `skillsync sync`, built-ins are synced like any other canonical skill.
+
+They appear in targets as skill directories such as:
 
 - `~/.claude/skills/skillsync-new/`
 - `~/.claude/skills/skillsync-check/`
@@ -311,8 +315,7 @@ Targets are explicitly managed by `skillsync target ...`.
    - Build/update rendered copy at `~/.skillsync/rendered/<destination-id>/<skill>/`
    - If observation mode is `on`, inject the static observation footer into rendered `SKILL.md`
    - Symlink target path entry to rendered skill directory
-3. Also place built-in skills (`skillsync-new`, `skillsync-check`, `skillsync-refine`)
-4. Prune stale managed links in configured targets
+3. Prune stale managed links in configured targets
 
 `sync` is best-effort: a failure on one target does not block syncing others. Final output reports per-target success/failure.
 

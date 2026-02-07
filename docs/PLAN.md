@@ -30,6 +30,8 @@ Status key:
 - `done` Implement `skillsync info <name>` with TDD (core + CLI tests)
 - `done` Implement `skillsync observe <name> --signal <positive|negative> [--note]` with TDD (core + CLI tests)
 - `done` Implement `skillsync log <name> [--summary]` with TDD (core + CLI tests)
+- `done` Seed built-in skills during `init` from bundled templates
+- `done` Add `BuiltInSkillsClient` dependency seam so `InitFeature` can be unit-tested with injected fixtures
 
 ## Milestones
 
@@ -37,6 +39,7 @@ Status key:
 - `done` Package structure and root command
 - `done` Version command
 - `done` `init` command
+- `done` `init` seeds built-in canonical skills (`skillsync-new`, `skillsync-check`, `skillsync-refine`)
 
 2. Target Management
 - `done` Add `skillsync target add --tool <name>` with known defaults + duplicate-path protection
@@ -62,8 +65,8 @@ Status key:
 - `done` Best-effort per-target sync reporting
 - `done` Prune stale managed links during sync
 - `done` Simplify observation modes to on/off (remove auto/remind, threshold, min_invocations)
-- `todo` Implement built-in skill rendering in sync (skillsync-new, skillsync-check, skillsync-refine)
-- `todo` Author built-in skill content (SKILL.md for skillsync-new, skillsync-check, skillsync-refine)
+- `done` Built-ins sync via canonical store seeding (`init`) + normal sync pipeline
+- `done` Author built-in skill content (SKILL.md for skillsync-new, skillsync-check, skillsync-refine)
 - `todo` Ensure sync/render never reads from editing
 - `todo` Improve sync output formatting consistency (`path` + `configured_path` behavior documented)
 

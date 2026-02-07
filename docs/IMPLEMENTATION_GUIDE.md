@@ -175,6 +175,7 @@ Dependencies to define:
 7. `ProcessClient` (for `$EDITOR`)
 8. `OutputClient` (`stdout` / `stderr`)
 9. `PathClient` (home expansion, path joins, validation)
+10. `BuiltInSkillsClient` (loads built-in skill templates for `init`; override in tests)
 
 Pattern:
 
@@ -204,6 +205,7 @@ Requirements:
 2. Preserve deterministic directory listing order.
 3. Support failure injection (permission denied, exists, missing parent, etc.).
 4. Provide snapshot-friendly tree description.
+5. For pure unit tests of `InitFeature`, inject `BuiltInSkillsClient` fixtures so tests do not read from the real bundle.
 
 Keep a separate integration layer for real symlink and lock behavior using temp directories.
 
@@ -213,6 +215,7 @@ Keep a separate integration layer for real symlink and lock behavior using temp 
 
 1. `skillsync init`
 - Create root dirs and default config.
+- Seed built-in canonical skills from bundled templates.
 - Idempotent.
 
 2. `skillsync config`
@@ -317,7 +320,7 @@ For each configured target:
 2. Copy all skill files into rendered location.
 3. If observation mode is `on`, inject the static observation footer into rendered `SKILL.md`.
 4. Symlink target-path skill entry to rendered skill directory.
-5. Render/symlink built-in skills (`skillsync-new`, `skillsync-check`, `skillsync-refine`).
+5. Built-ins are not special-cased in sync. They are canonical skills seeded by `init`, so they flow through the same render/symlink path.
 6. Prune stale managed links in that target.
 
 Footer idempotency markers:
@@ -379,7 +382,7 @@ Split rationale: `skillsync-check` is cheap/read-only and surfaces status, while
 
 3. `skillsync log <name> --summary`
 - Print one-line usage summary from JSONL history (not from `.meta.toml` counters).
-- Example: `pdf: 12 invocations, 7 positive, 5 negative (58%)`
+- Example: `pdf: 12 invocations, 7 positive, 5 negative (42% negative)`
 - Zero-observation case: `pdf: 0 invocations`
 
 4. `skillsync log <name>`
@@ -406,6 +409,7 @@ Current implementation:
 
 1. Per-skill lock files (`~/.skillsync/locks/<name>.lock`) gate `edit`, `commit`, and `abort`.
 2. `commit` requires lock presence, writes canonical, then removes edit copy and lock.
+3. `edit` reports "already being edited" and points users to `--force` instead of exposing lock file paths.
 
 Hardening target:
 
@@ -524,8 +528,8 @@ Match pfw style by injecting output dependencies instead of writing directly to 
 
 Recommended immediate slice from current baseline:
 
-1. Implement built-in skill rendering in sync (`skillsync-new`, `skillsync-check`, `skillsync-refine`).
-2. Author built-in skill content (`SKILL.md` for each built-in) with progressive disclosure.
-3. Persist commit reason into optional refinement/change history now that observe/log are stable.
+1. Persist commit reason into optional refinement/change history now that observe/log are stable.
+2. Add stronger lock ownership + stale-lock recovery policy.
+3. Improve sync output formatting and machine-readable output contracts.
 
-Deliverable: complete edit lifecycle (`edit`, `diff`, `commit`, `abort`) with metadata trail and no stale write path dependence.
+Deliverable: richer refinement metadata and stronger operational hardening while keeping current edit/sync workflow unchanged.

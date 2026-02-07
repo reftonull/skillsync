@@ -5,34 +5,49 @@ import SkillSyncCore
 public struct SyncCommand: AsyncParsableCommand {
   public static let configuration = CommandConfiguration(
     commandName: "sync",
-    abstract: "Resolve sync destinations for tools and paths."
+    abstract: "Sync all skills to configured targets."
   )
-
-  @Option(name: .long, help: "Known tool name to sync (repeatable).")
-  public var tool: [String] = []
-
-  @Option(name: .long, help: "Explicit path to sync to (repeatable).")
-  public var path: [String] = []
-
-  @Flag(name: .long, help: "Resolve project-local tool paths by finding the project root.")
-  public var project = false
 
   public init() {}
 
   public mutating func run() async throws {
     @Dependency(\.outputClient) var outputClient
-    let configuredTools = try LoadSyncConfigFeature().run().configuredTools
-    let result = try ResolveSyncDestinationsFeature().run(
+    @Dependency(\.pathClient) var pathClient
+    let config = try LoadSyncConfigFeature().run()
+    guard !config.targets.isEmpty else {
+      throw ValidationError("No targets configured. Use `skillsync target add ...`.")
+    }
+
+    let syncResult = try SyncRenderFeature().run(
       .init(
-        tools: self.tool,
-        paths: self.path,
-        project: self.project,
-        configuredTools: configuredTools
+        targets: config.targets,
+        observation: config.observation
       )
     )
 
-    for destination in result.destinations {
-      outputClient.stdout("destination=\(destination.id) path=\(destination.path.path)")
+    for target in syncResult.targets {
+      let resolvedPath = pathClient.resolvePath(target.target.path).path
+      let configuredPathSuffix =
+        target.target.path == resolvedPath
+        ? ""
+        : " configured_path=\(target.target.path)"
+      if let error = target.error {
+        outputClient.stdout(
+          """
+          target=\(target.target.id) path=\(resolvedPath) status=failed error="\(error)"\(configuredPathSuffix)
+          """
+        )
+      } else {
+        outputClient.stdout(
+          """
+          target=\(target.target.id) path=\(resolvedPath) status=ok skills=\(target.syncedSkills)\(configuredPathSuffix)
+          """
+        )
+      }
+    }
+
+    if !syncResult.allSucceeded {
+      throw ExitCode(1)
     }
   }
 }

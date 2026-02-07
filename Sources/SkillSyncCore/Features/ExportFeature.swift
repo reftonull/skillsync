@@ -54,30 +54,12 @@ public struct ExportFeature {
       throw Error.destinationAlreadyExists(destination.path)
     }
 
-    try copyDirectory(from: source, to: destination)
+    try CopyDirectoryFeature().run(
+      from: source,
+      to: destination,
+      excluding: [".meta.toml"]
+    )
 
     return Result(skillName: input.name, destination: destination)
-  }
-
-  private func copyDirectory(from source: URL, to destination: URL) throws {
-    try fileSystemClient.createDirectory(destination, true)
-    let children = try fileSystemClient.contentsOfDirectory(source)
-      .sorted { $0.lastPathComponent < $1.lastPathComponent }
-
-    for child in children {
-      if child.lastPathComponent == ".meta.toml" {
-        continue
-      }
-      let target = destination.appendingPathComponent(
-        child.lastPathComponent,
-        isDirectory: fileSystemClient.isDirectory(child.path)
-      )
-      if fileSystemClient.isDirectory(child.path) {
-        try copyDirectory(from: child, to: target)
-      } else {
-        try fileSystemClient.createDirectory(target.deletingLastPathComponent(), true)
-        try fileSystemClient.write(try fileSystemClient.data(child), target)
-      }
-    }
   }
 }

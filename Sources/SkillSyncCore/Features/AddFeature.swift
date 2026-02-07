@@ -76,7 +76,7 @@ public struct AddFeature {
       throw Error.skillAlreadyExists(skillName)
     }
 
-    try copyDirectory(from: sourceRoot, to: skillRoot)
+    try CopyDirectoryFeature().run(from: sourceRoot, to: skillRoot)
 
     let contentHash = try SkillContentHashFeature().run(skillDirectory: skillRoot)
     let metaURL = skillRoot.appendingPathComponent(".meta.toml")
@@ -106,22 +106,6 @@ public struct AddFeature {
       createdMeta: createdMeta,
       contentHash: contentHash
     )
-  }
-
-  private func copyDirectory(from source: URL, to destination: URL) throws {
-    try fileSystemClient.createDirectory(destination, true)
-    let children = try fileSystemClient.contentsOfDirectory(source)
-      .sorted { $0.lastPathComponent < $1.lastPathComponent }
-
-    for child in children {
-      let target = destination.appendingPathComponent(child.lastPathComponent, isDirectory: fileSystemClient.isDirectory(child.path))
-      if fileSystemClient.isDirectory(child.path) {
-        try copyDirectory(from: child, to: target)
-      } else {
-        try fileSystemClient.createDirectory(target.deletingLastPathComponent(), true)
-        try fileSystemClient.write(try fileSystemClient.data(child), target)
-      }
-    }
   }
 
   private static func defaultImportedMeta(createdAt: String, contentHash: String) -> String {

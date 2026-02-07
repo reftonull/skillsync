@@ -23,11 +23,12 @@ struct LoadSyncConfigFeatureTests {
       try LoadSyncConfigFeature().run()
     }
 
-    expectNoDifference(result.configuredTools, [String: String]())
+    expectNoDifference(result.targets, [SyncTarget]())
+    expectNoDifference(result.observation, .default)
   }
 
   @Test
-  func parsesToolPathsFromConfigToml() throws {
+  func parsesTargetsFromConfigToml() throws {
     let fileSystem = InMemoryFileSystem(
       homeDirectoryForCurrentUser: URL(filePath: "/Users/blob", directoryHint: .isDirectory)
     )
@@ -41,11 +42,15 @@ struct LoadSyncConfigFeatureTests {
         [skillsync]
         version = "1"
 
-        [tools.codex]
+        [[targets]]
+        id = "codex"
         path = "/tmp/codex-skills"
+        source = "tool"
 
-        [tools.cursor]
-        path = "~/custom-cursor-skills"
+        [[targets]]
+        id = "project-codex"
+        path = "~/project/.codex/skills"
+        source = "project"
 
         [observation]
         mode = "auto"
@@ -65,16 +70,20 @@ struct LoadSyncConfigFeatureTests {
     }
 
     expectNoDifference(
-      result.configuredTools,
+      result.targets,
       [
-        "codex": "/tmp/codex-skills",
-        "cursor": "~/custom-cursor-skills",
+        .init(id: "codex", path: "/tmp/codex-skills", source: .tool),
+        .init(id: "project-codex", path: "~/project/.codex/skills", source: .project),
       ]
+    )
+    expectNoDifference(
+      result.observation,
+      .init(mode: .auto, threshold: 0.3, minInvocations: 5)
     )
   }
 
   @Test
-  func ignoresToolsWithoutPath() throws {
+  func ignoresInvalidTargetRows() throws {
     let fileSystem = InMemoryFileSystem(
       homeDirectoryForCurrentUser: URL(filePath: "/Users/blob", directoryHint: .isDirectory)
     )
@@ -85,11 +94,14 @@ struct LoadSyncConfigFeatureTests {
     fileSystem.setFile(
       Data(
         """
-        [tools.codex]
+        [[targets]]
+        id = "broken"
         foo = "bar"
 
-        [tools.cursor]
+        [[targets]]
+        id = "cursor"
         path = "/tmp/cursor-skills"
+        source = "tool"
         """.utf8
       ),
       atPath: "/Users/blob/.skillsync/config.toml"
@@ -106,31 +118,32 @@ struct LoadSyncConfigFeatureTests {
     }
 
     expectNoDifference(
-      result.configuredTools,
-      ["cursor": "/tmp/cursor-skills"]
+      result.targets,
+      [.init(id: "cursor", path: "/tmp/cursor-skills", source: .tool)]
     )
   }
 
   @Test
-  func parseConfiguredToolsStripsCommentsSupportsSingleQuotesAndIgnoresEmptyToolName() {
-    let parsed = LoadSyncConfigFeature.parseConfiguredTools(
+  func parseTargetsStripsCommentsAndSupportsSingleQuotes() {
+    let parsed = LoadSyncConfigFeature.parseTargets(
       from: """
-      [tools.codex]
+      [[targets]]
+      id = 'codex'
       path = '/tmp/codex#skills' # inline comment should be ignored
+      source = "tool"
 
-      [tools.cursor]
+      [[targets]]
+      id = "cursor"
       path = "~/cursor-skills" # trailing comment
-
-      [tools.]
-      path = "/tmp/ignored"
+      source = "path"
       """
     )
 
     expectNoDifference(
       parsed,
       [
-        "codex": "/tmp/codex#skills",
-        "cursor": "~/cursor-skills",
+        .init(id: "codex", path: "/tmp/codex#skills", source: .tool),
+        .init(id: "cursor", path: "~/cursor-skills", source: .path),
       ]
     )
   }
@@ -159,6 +172,44 @@ struct LoadSyncConfigFeatureTests {
       try LoadSyncConfigFeature().run()
     }
 
-    expectNoDifference(result.configuredTools, [String: String]())
+    expectNoDifference(result.targets, [SyncTarget]())
+    expectNoDifference(result.observation, .default)
+  }
+
+  @Test
+  func parsesObservationSettingsFromConfig() throws {
+    let fileSystem = InMemoryFileSystem(
+      homeDirectoryForCurrentUser: URL(filePath: "/Users/blob", directoryHint: .isDirectory)
+    )
+    try fileSystem.createDirectory(
+      at: URL(filePath: "/Users/blob/.skillsync", directoryHint: .isDirectory),
+      withIntermediateDirectories: true
+    )
+    fileSystem.setFile(
+      Data(
+        """
+        [observation]
+        mode = "remind"
+        threshold = 0.45
+        min_invocations = 9
+        """.utf8
+      ),
+      atPath: "/Users/blob/.skillsync/config.toml"
+    )
+
+    let result = try withDependencies {
+      $0.pathClient = PathClient(
+        homeDirectory: { fileSystem.homeDirectoryForCurrentUser },
+        currentDirectory: { URL(filePath: "/Users/blob/project", directoryHint: .isDirectory) }
+      )
+      $0.fileSystemClient = fileSystem.client
+    } operation: {
+      try LoadSyncConfigFeature().run()
+    }
+
+    expectNoDifference(
+      result.observation,
+      .init(mode: .remind, threshold: 0.45, minInvocations: 9)
+    )
   }
 }

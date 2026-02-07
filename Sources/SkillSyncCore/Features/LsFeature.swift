@@ -59,63 +59,14 @@ public struct LsFeature {
   private func loadSummary(for skillDirectory: URL) throws -> SkillSummary {
     let name = skillDirectory.lastPathComponent
     let metaURL = skillDirectory.appendingPathComponent(".meta.toml")
-
-    var state = "active"
-    var totalInvocations = 0
-    var positive = 0
-    var negative = 0
-
-    if fileSystemClient.fileExists(metaURL.path), !fileSystemClient.isDirectory(metaURL.path) {
-      let data = try fileSystemClient.data(metaURL)
-      if let content = String(data: data, encoding: .utf8) {
-        var currentSection = ""
-        for rawLine in content.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline) {
-          let line = String(rawLine).trimmingCharacters(in: .whitespacesAndNewlines)
-          guard !line.isEmpty, !line.hasPrefix("#") else { continue }
-
-          if line.hasPrefix("[") && line.hasSuffix("]") {
-            currentSection = String(line.dropFirst().dropLast())
-              .trimmingCharacters(in: .whitespacesAndNewlines)
-            continue
-          }
-
-          guard let equals = line.firstIndex(of: "=") else { continue }
-          let key = String(line[..<equals]).trimmingCharacters(in: .whitespacesAndNewlines)
-          let rawValue = String(line[line.index(after: equals)...]).trimmingCharacters(in: .whitespacesAndNewlines)
-
-          switch (currentSection, key) {
-          case ("skill", "state"):
-            state = parseString(rawValue) ?? state
-          case ("stats", "total-invocations"):
-            totalInvocations = Int(rawValue) ?? totalInvocations
-          case ("stats", "positive"):
-            positive = Int(rawValue) ?? positive
-          case ("stats", "negative"):
-            negative = Int(rawValue) ?? negative
-          default:
-            continue
-          }
-        }
-      }
-    }
+    let meta = try UpdateMetaFeature().read(metaURL: metaURL)
 
     return SkillSummary(
       name: name,
-      state: state,
-      totalInvocations: totalInvocations,
-      positive: positive,
-      negative: negative
+      state: meta.string(section: "skill", key: "state") ?? "active",
+      totalInvocations: meta.int(section: "stats", key: "total-invocations") ?? 0,
+      positive: meta.int(section: "stats", key: "positive") ?? 0,
+      negative: meta.int(section: "stats", key: "negative") ?? 0
     )
-  }
-
-  private func parseString(_ rawValue: String) -> String? {
-    guard rawValue.count >= 2 else { return nil }
-    if rawValue.hasPrefix("\""), rawValue.hasSuffix("\"") {
-      return String(rawValue.dropFirst().dropLast())
-    }
-    if rawValue.hasPrefix("'"), rawValue.hasSuffix("'") {
-      return String(rawValue.dropFirst().dropLast())
-    }
-    return nil
   }
 }

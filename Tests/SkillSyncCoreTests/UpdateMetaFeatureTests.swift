@@ -185,4 +185,63 @@ struct UpdateMetaFeatureTests {
       """
     )
   }
+
+  @Test
+  func readsTypedValuesFromMeta() throws {
+    let fileSystem = InMemoryFileSystem()
+    let metaURL = URL(filePath: "/Users/blob/.skillsync/skills/pdf/.meta.toml")
+    try fileSystem.createDirectory(
+      at: metaURL.deletingLastPathComponent(),
+      withIntermediateDirectories: true
+    )
+    try fileSystem.write(
+      Data(
+        """
+        [skill]
+        state = "active"
+        flag = true
+
+        [stats]
+        total-invocations = 12
+        """.utf8
+      ),
+      to: metaURL
+    )
+
+    let document = try withDependencies {
+      $0.fileSystemClient = fileSystem.client
+    } operation: {
+      try UpdateMetaFeature().read(metaURL: metaURL)
+    }
+
+    expectNoDifference(document.string(section: "skill", key: "state"), "active")
+    expectNoDifference(document.bool(section: "skill", key: "flag"), true)
+    expectNoDifference(document.int(section: "stats", key: "total-invocations"), 12)
+  }
+
+  @Test
+  func readsEmptyDocumentForMissingOrInvalidMeta() throws {
+    let fileSystem = InMemoryFileSystem()
+    let missingURL = URL(filePath: "/Users/blob/.skillsync/skills/pdf/.meta.toml")
+    let invalidURL = URL(filePath: "/Users/blob/.skillsync/skills/csv/.meta.toml")
+    try fileSystem.createDirectory(
+      at: invalidURL.deletingLastPathComponent(),
+      withIntermediateDirectories: true
+    )
+    try fileSystem.write(Data([0xFF, 0xFE, 0x00]), to: invalidURL)
+
+    let missing = try withDependencies {
+      $0.fileSystemClient = fileSystem.client
+    } operation: {
+      try UpdateMetaFeature().read(metaURL: missingURL)
+    }
+    let invalid = try withDependencies {
+      $0.fileSystemClient = fileSystem.client
+    } operation: {
+      try UpdateMetaFeature().read(metaURL: invalidURL)
+    }
+
+    expectNoDifference(missing.rawValue(section: "skill", key: "state"), nil)
+    expectNoDifference(invalid.rawValue(section: "skill", key: "state"), nil)
+  }
 }

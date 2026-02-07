@@ -2,6 +2,42 @@ import Dependencies
 import Foundation
 
 public struct UpdateMetaFeature {
+  public struct MetaDocument: Equatable, Sendable {
+    var fields: [String: [String: String]]
+
+    public init(fields: [String: [String: String]] = [:]) {
+      self.fields = fields
+    }
+
+    public func rawValue(section: String, key: String) -> String? {
+      fields[section]?[key]
+    }
+
+    public func string(section: String, key: String) -> String? {
+      guard let raw = rawValue(section: section, key: key) else { return nil }
+      guard raw.count >= 2 else { return nil }
+      if raw.hasPrefix("\""), raw.hasSuffix("\"") {
+        return String(raw.dropFirst().dropLast())
+      }
+      if raw.hasPrefix("'"), raw.hasSuffix("'") {
+        return String(raw.dropFirst().dropLast())
+      }
+      return nil
+    }
+
+    public func int(section: String, key: String) -> Int? {
+      rawValue(section: section, key: key).flatMap(Int.init)
+    }
+
+    public func bool(section: String, key: String) -> Bool? {
+      switch rawValue(section: section, key: key) {
+      case "true": return true
+      case "false": return false
+      default: return nil
+      }
+    }
+  }
+
   public struct FieldUpdate: Equatable, Sendable {
     public enum Operation: Equatable, Sendable {
       case setString(String)
@@ -24,6 +60,16 @@ public struct UpdateMetaFeature {
   @Dependency(\.fileSystemClient) var fileSystemClient
 
   public init() {}
+
+  public func read(metaURL: URL) throws -> MetaDocument {
+    guard fileSystemClient.fileExists(metaURL.path), !fileSystemClient.isDirectory(metaURL.path) else {
+      return MetaDocument()
+    }
+    guard let content = String(data: try fileSystemClient.data(metaURL), encoding: .utf8) else {
+      return MetaDocument()
+    }
+    return Self.parse(content: content)
+  }
 
   public func run(metaURL: URL, updates: [FieldUpdate]) throws {
     var lines = String(
@@ -89,5 +135,58 @@ public struct UpdateMetaFeature {
     let raw = line[line.index(after: equals)...]
       .trimmingCharacters(in: .whitespacesAndNewlines)
     return Int(raw)
+  }
+
+  private static func parse(content: String) -> MetaDocument {
+    var fields: [String: [String: String]] = [:]
+    var currentSection = ""
+
+    for rawLine in content.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline) {
+      let line = stripComments(String(rawLine)).trimmingCharacters(in: .whitespacesAndNewlines)
+      guard !line.isEmpty else { continue }
+
+      if line.hasPrefix("[") && line.hasSuffix("]") {
+        currentSection = String(line.dropFirst().dropLast()).trimmingCharacters(in: .whitespacesAndNewlines)
+        continue
+      }
+
+      guard !currentSection.isEmpty else { continue }
+      guard let equals = line.firstIndex(of: "=") else { continue }
+      let key = String(line[..<equals]).trimmingCharacters(in: .whitespacesAndNewlines)
+      let value = String(line[line.index(after: equals)...]).trimmingCharacters(in: .whitespacesAndNewlines)
+      guard !key.isEmpty else { continue }
+
+      var section = fields[currentSection, default: [:]]
+      section[key] = value
+      fields[currentSection] = section
+    }
+
+    return MetaDocument(fields: fields)
+  }
+
+  private static func stripComments(_ line: String) -> String {
+    var inString = false
+    var delimiter: Character?
+    var output = ""
+
+    for character in line {
+      if inString {
+        output.append(character)
+        if character == delimiter {
+          inString = false
+          delimiter = nil
+        }
+      } else if character == "\"" || character == "'" {
+        inString = true
+        delimiter = character
+        output.append(character)
+      } else if character == "#" {
+        break
+      } else {
+        output.append(character)
+      }
+    }
+
+    return output
   }
 }

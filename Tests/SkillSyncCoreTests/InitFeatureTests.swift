@@ -29,6 +29,11 @@ struct InitFeatureTests {
     #expect(fileSystem.client.fileExists(store.appendingPathComponent("rendered").path))
     #expect(fileSystem.client.fileExists(store.appendingPathComponent("logs").path))
     #expect(fileSystem.client.fileExists(store.appendingPathComponent("config.toml").path))
+    let config = try fileSystem.data(at: store.appendingPathComponent("config.toml"))
+    let configContents = String(decoding: config, as: UTF8.self)
+    #expect(!configContents.contains("[tools.claude-code]"))
+    #expect(!configContents.contains("[tools.codex]"))
+    #expect(!configContents.contains("[tools.cursor]"))
   }
 
   @Test

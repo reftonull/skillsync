@@ -4,25 +4,37 @@ import Foundation
 public struct FileSystemClient: Sendable {
   public var fileExists: @Sendable (String) -> Bool
   public var isDirectory: @Sendable (String) -> Bool
+  public var isSymbolicLink: @Sendable (String) -> Bool
   public var createDirectory: @Sendable (URL, Bool) throws -> Void
   public var contentsOfDirectory: @Sendable (URL) throws -> [URL]
   public var write: @Sendable (Data, URL) throws -> Void
   public var data: @Sendable (URL) throws -> Data
+  public var createSymbolicLink: @Sendable (URL, URL) throws -> Void
+  public var destinationOfSymbolicLink: @Sendable (URL) throws -> URL
+  public var removeItem: @Sendable (URL) throws -> Void
 
   public init(
     fileExists: @escaping @Sendable (String) -> Bool,
     isDirectory: @escaping @Sendable (String) -> Bool,
+    isSymbolicLink: @escaping @Sendable (String) -> Bool,
     createDirectory: @escaping @Sendable (URL, Bool) throws -> Void,
     contentsOfDirectory: @escaping @Sendable (URL) throws -> [URL],
     write: @escaping @Sendable (Data, URL) throws -> Void,
-    data: @escaping @Sendable (URL) throws -> Data
+    data: @escaping @Sendable (URL) throws -> Data,
+    createSymbolicLink: @escaping @Sendable (URL, URL) throws -> Void,
+    destinationOfSymbolicLink: @escaping @Sendable (URL) throws -> URL,
+    removeItem: @escaping @Sendable (URL) throws -> Void
   ) {
     self.fileExists = fileExists
     self.isDirectory = isDirectory
+    self.isSymbolicLink = isSymbolicLink
     self.createDirectory = createDirectory
     self.contentsOfDirectory = contentsOfDirectory
     self.write = write
     self.data = data
+    self.createSymbolicLink = createSymbolicLink
+    self.destinationOfSymbolicLink = destinationOfSymbolicLink
+    self.removeItem = removeItem
   }
 
   public static let live = FileSystemClient(
@@ -34,6 +46,14 @@ public struct FileSystemClient: Sendable {
       }
       return isDirectory.boolValue
     },
+    isSymbolicLink: { path in
+      guard
+        let type = try? FileManager.default.attributesOfItem(atPath: path)[.type] as? FileAttributeType
+      else {
+        return false
+      }
+      return type == .typeSymbolicLink
+    },
     createDirectory: { url, createIntermediates in
       try FileManager.default.createDirectory(at: url, withIntermediateDirectories: createIntermediates)
     },
@@ -43,7 +63,23 @@ public struct FileSystemClient: Sendable {
     write: { data, url in
       try data.write(to: url)
     },
-    data: { try Data(contentsOf: $0) }
+    data: { try Data(contentsOf: $0) },
+    createSymbolicLink: { link, destination in
+      try FileManager.default.createSymbolicLink(at: link, withDestinationURL: destination)
+    },
+    destinationOfSymbolicLink: { link in
+      let destination = try FileManager.default.destinationOfSymbolicLink(atPath: link.path)
+      if destination.hasPrefix("/") {
+        return URL(filePath: destination)
+      }
+      return link
+        .deletingLastPathComponent()
+        .appendingPathComponent(destination)
+        .standardizedFileURL
+    },
+    removeItem: { path in
+      try FileManager.default.removeItem(at: path)
+    }
   )
 }
 
@@ -60,6 +96,9 @@ private enum FileSystemClientKey: DependencyKey {
       isDirectory: { _ in
         testDependencyFailure("isDirectory")
       },
+      isSymbolicLink: { _ in
+        testDependencyFailure("isSymbolicLink")
+      },
       createDirectory: { _, _ in
         testDependencyFailure("createDirectory")
       },
@@ -71,6 +110,15 @@ private enum FileSystemClientKey: DependencyKey {
       },
       data: { _ in
         testDependencyFailure("data")
+      },
+      createSymbolicLink: { _, _ in
+        testDependencyFailure("createSymbolicLink")
+      },
+      destinationOfSymbolicLink: { _ in
+        testDependencyFailure("destinationOfSymbolicLink")
+      },
+      removeItem: { _ in
+        testDependencyFailure("removeItem")
       }
     )
   }

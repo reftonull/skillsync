@@ -14,6 +14,7 @@ public final class InMemoryFileSystem: Sendable {
   struct State {
     var files: [String: Data]
     var directories: Set<String>
+    var symbolicLinks: [String: String]
     var homeDirectoryForCurrentUser: URL
   }
 
@@ -27,6 +28,7 @@ public final class InMemoryFileSystem: Sendable {
     let state = State(
       files: files,
       directories: directories,
+      symbolicLinks: [:],
       homeDirectoryForCurrentUser: homeDirectoryForCurrentUser
     )
     self.state = LockIsolated(state)
@@ -46,12 +48,19 @@ public final class InMemoryFileSystem: Sendable {
       fileExists: { [state] path in
         let normalized = normalize(path)
         return state.withValue { state in
-          state.files[normalized] != nil || state.directories.contains(normalized)
+          state.files[normalized] != nil
+            || state.directories.contains(normalized)
+            || state.symbolicLinks[normalized] != nil
         }
       },
       isDirectory: { [state] path in
         state.withValue { state in
           state.directories.contains(normalize(path))
+        }
+      },
+      isSymbolicLink: { [state] path in
+        state.withValue { state in
+          state.symbolicLinks[normalize(path)] != nil
         }
       },
       createDirectory: { url, withIntermediateDirectories in
@@ -65,6 +74,15 @@ public final class InMemoryFileSystem: Sendable {
       },
       data: { url in
         try fileSystem.data(at: url)
+      },
+      createSymbolicLink: { link, destination in
+        try fileSystem.createSymbolicLink(at: link, destination: destination)
+      },
+      destinationOfSymbolicLink: { link in
+        try fileSystem.destinationOfSymbolicLink(at: link)
+      },
+      removeItem: { url in
+        try fileSystem.removeItem(at: url)
       }
     )
   }
@@ -81,10 +99,13 @@ public final class InMemoryFileSystem: Sendable {
       guard state.files[path] == nil else {
         throw Error.fileExists(path)
       }
+      guard state.symbolicLinks[path] == nil else {
+        throw Error.fileExists(path)
+      }
 
       if createIntermediates {
         for directory in pathPrefixes(path) {
-          guard state.files[directory] == nil else {
+          guard state.files[directory] == nil, state.symbolicLinks[directory] == nil else {
             throw Error.notDirectory(directory)
           }
           _ = state.directories.insert(directory)
@@ -109,6 +130,9 @@ public final class InMemoryFileSystem: Sendable {
       guard !state.directories.contains(path) else {
         throw Error.isDirectory(path)
       }
+      guard state.symbolicLinks[path] == nil else {
+        throw Error.fileExists(path)
+      }
       state.files[path] = data
     }
   }
@@ -118,6 +142,9 @@ public final class InMemoryFileSystem: Sendable {
     return try state.withValue { state in
       guard !state.directories.contains(path) else {
         throw Error.isDirectory(path)
+      }
+      guard state.symbolicLinks[path] == nil else {
+        throw Error.fileNotFound(path)
       }
       guard let data = state.files[path] else {
         throw Error.fileNotFound(path)
@@ -159,9 +186,70 @@ public final class InMemoryFileSystem: Sendable {
         }
       }
 
+      for link in state.symbolicLinks.keys where link.hasPrefix(prefix) {
+        let suffix = String(link.dropFirst(prefix.count))
+        guard !suffix.isEmpty else { continue }
+        if !suffix.contains("/") {
+          children.insert(prefix + suffix)
+        } else if let firstComponent = suffix.split(separator: "/").first {
+          children.insert(prefix + firstComponent)
+        }
+      }
+
       return children
         .sorted()
         .map { URL(filePath: $0) }
+    }
+  }
+
+  public func createSymbolicLink(at link: URL, destination: URL) throws {
+    let path = normalize(link)
+    let parent = normalize(link.deletingLastPathComponent())
+    let target = normalize(destination)
+    try state.withValue { state in
+      guard state.directories.contains(parent) else {
+        throw Error.directoryNotFound(parent)
+      }
+      guard state.files[path] == nil, !state.directories.contains(path), state.symbolicLinks[path] == nil else {
+        throw Error.fileExists(path)
+      }
+      state.symbolicLinks[path] = target
+    }
+  }
+
+  public func destinationOfSymbolicLink(at link: URL) throws -> URL {
+    let path = normalize(link)
+    return try state.withValue { state in
+      guard let target = state.symbolicLinks[path] else {
+        throw Error.fileNotFound(path)
+      }
+      return URL(filePath: target)
+    }
+  }
+
+  public func removeItem(at url: URL) throws {
+    let path = normalize(url)
+    try state.withValue { state in
+      if state.files.removeValue(forKey: path) != nil {
+        return
+      }
+      if state.symbolicLinks.removeValue(forKey: path) != nil {
+        return
+      }
+      if state.directories.contains(path) {
+        let prefix = path == "/" ? "/" : path + "/"
+        state.files = state.files.filter { key, _ in
+          !(key == path || key.hasPrefix(prefix))
+        }
+        state.symbolicLinks = state.symbolicLinks.filter { key, _ in
+          !(key == path || key.hasPrefix(prefix))
+        }
+        state.directories = Set(state.directories.filter { key in
+          !(key == path || key.hasPrefix(prefix))
+        })
+        return
+      }
+      throw Error.fileNotFound(path)
     }
   }
 }
@@ -177,6 +265,9 @@ extension InMemoryFileSystem: CustomStringConvertible {
         let data = state.files[path]!
         let value = data.count < 50 ? "\"\(String(decoding: data, as: UTF8.self))\"" : "(\(data.count) bytes)"
         lines.append("file \(path) \(value)")
+      }
+      for (path, destination) in state.symbolicLinks.sorted(by: { $0.key < $1.key }) {
+        lines.append("symlink \(path) -> \(destination)")
       }
       return lines.joined(separator: "\n")
     }

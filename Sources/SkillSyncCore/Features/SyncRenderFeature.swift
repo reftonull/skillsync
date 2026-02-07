@@ -202,7 +202,7 @@ public struct SyncRenderFeature {
   }
 
   private func injectObservationFooterIfNeeded(
-    skillName: String,
+    skillName _: String,
     renderedSkillRoot: URL,
     observation: ObservationSettings
   ) throws {
@@ -215,12 +215,7 @@ public struct SyncRenderFeature {
     guard var markdown = String(data: content, encoding: .utf8) else { return }
 
     markdown = Self.removingObservationFooter(from: markdown)
-    let footer = Self.observationFooter(
-      mode: observation.mode,
-      skillName: skillName,
-      threshold: observation.threshold,
-      minInvocations: observation.minInvocations
-    )
+    let footer = Self.observationFooter(mode: observation.mode)
     if !markdown.hasSuffix("\n") {
       markdown.append("\n")
     }
@@ -279,33 +274,15 @@ public struct SyncRenderFeature {
     return output.trimmingCharacters(in: .whitespacesAndNewlines)
   }
 
-  private static func observationFooter(
-    mode: ObservationMode,
-    skillName: String,
-    threshold: Double,
-    minInvocations: Int
-  ) -> String {
+  private static func observationFooter(mode: ObservationMode) -> String {
     switch mode {
     case .off:
       return ""
-    case .remind:
+    case .on:
       return """
       <!-- skillsync:observation:start -->
       ---
-      After completing this skill, remind the user:
-      "Rate this result: `/skillsync-observe \(skillName) <positive|negative> [note]`"
-      <!-- skillsync:observation:end -->
-      """
-    case .auto:
-      return """
-      <!-- skillsync:observation:start -->
-      ---
-      After completing this skill, assess whether the user was satisfied.
-      Call: skillsync observe \(skillName) --signal <positive|negative> --note "<brief reason>"
-      Then call: skillsync log \(skillName) --summary
-      If negative rate exceeds threshold (\(threshold)) after at least \(minInvocations) invocations, mention:
-      "(\(skillName) has been struggling - <N>/<total> negative. `/skillsync-refine \(skillName)` when you have a moment.)"
-      Otherwise, briefly note what you logged: "(logged: positive)"
+      After using this skill, run: skillsync observe <skill-name> --signal positive|negative [--note "..."]
       <!-- skillsync:observation:end -->
       """
     }

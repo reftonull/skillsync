@@ -28,6 +28,7 @@ Status key:
 - `done` Move docs to tracked `docs/` directory and align workflow terminology
 - `done` Implement `skillsync diff <name>` with JSON default output (no `--json` flag)
 - `done` Implement `skillsync info <name>` with TDD (core + CLI tests)
+- `done` Implement `skillsync observe <name> --signal <positive|negative> [--note]` with TDD (core + CLI tests)
 
 ## Milestones
 
@@ -59,14 +60,17 @@ Status key:
 - `done` Observation footer injection markers
 - `done` Best-effort per-target sync reporting
 - `done` Prune stale managed links during sync
+- `done` Simplify observation modes to on/off (remove auto/remind, threshold, min_invocations)
+- `todo` Implement built-in skill rendering in sync (skillsync-new, skillsync-check, skillsync-refine)
+- `todo` Author built-in skill content (SKILL.md for skillsync-new, skillsync-check, skillsync-refine)
 - `todo` Ensure sync/render never reads from editing
 - `todo` Improve sync output formatting consistency (`path` + `configured_path` behavior documented)
 
 5. Observe + Refine
-- `todo` `skillsync observe <name> --signal <positive|negative> [--note]`
+- `done` `skillsync observe <name> --signal <positive|negative> [--note]`
 - `done` `skillsync info <name>` (version, hash, stats, state)
 - `todo` `skillsync log <name>` / `--summary`
-- `todo` Observation footer shows stats + refinement suggestion when underperforming
+- `done` Observation footer injects static observe reminder when mode is `on`
 - `note` Refinement uses existing `edit` -> `commit` -> `sync` path with user consent
 
 6. Hardening

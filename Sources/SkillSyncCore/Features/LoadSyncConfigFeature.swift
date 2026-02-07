@@ -96,8 +96,6 @@ public struct LoadSyncConfigFeature {
 
   static func parseObservationSettings(from contents: String) -> ObservationSettings {
     var mode = ObservationSettings.default.mode
-    var threshold = ObservationSettings.default.threshold
-    var minInvocations = ObservationSettings.default.minInvocations
     var inObservationSection = false
 
     for rawLine in contents.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline) {
@@ -121,20 +119,12 @@ public struct LoadSyncConfigFeature {
         if let rawMode = Self.parseStringLiteral(rawValue), let parsedMode = ObservationMode(rawValue: rawMode) {
           mode = parsedMode
         }
-      case "threshold":
-        if let parsed = Double(rawValue) {
-          threshold = parsed
-        }
-      case "min_invocations":
-        if let parsed = Int(rawValue) {
-          minInvocations = parsed
-        }
       default:
         continue
       }
     }
 
-    return ObservationSettings(mode: mode, threshold: threshold, minInvocations: minInvocations)
+    return ObservationSettings(mode: mode)
   }
 
   private static func stripComments(_ line: String) -> String {

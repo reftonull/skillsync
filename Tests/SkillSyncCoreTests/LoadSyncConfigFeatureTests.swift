@@ -53,7 +53,7 @@ struct LoadSyncConfigFeatureTests {
         source = "project"
 
         [observation]
-        mode = "auto"
+        mode = "on"
         """.utf8
       ),
       atPath: "/Users/blob/.skillsync/config.toml"
@@ -78,7 +78,7 @@ struct LoadSyncConfigFeatureTests {
     )
     expectNoDifference(
       result.observation,
-      .init(mode: .auto, threshold: 0.3, minInvocations: 5)
+      .init(mode: .on)
     )
   }
 
@@ -189,6 +189,43 @@ struct LoadSyncConfigFeatureTests {
       Data(
         """
         [observation]
+        mode = "off"
+        threshold = 0.45
+        min_invocations = 9
+        """.utf8
+      ),
+      atPath: "/Users/blob/.skillsync/config.toml"
+    )
+
+    let result = try withDependencies {
+      $0.pathClient = PathClient(
+        homeDirectory: { fileSystem.homeDirectoryForCurrentUser },
+        currentDirectory: { URL(filePath: "/Users/blob/project", directoryHint: .isDirectory) }
+      )
+      $0.fileSystemClient = fileSystem.client
+    } operation: {
+      try LoadSyncConfigFeature().run()
+    }
+
+    expectNoDifference(
+      result.observation,
+      .init(mode: .off)
+    )
+  }
+
+  @Test
+  func fallsBackToDefaultWhenObservationModeIsUnknown() throws {
+    let fileSystem = InMemoryFileSystem(
+      homeDirectoryForCurrentUser: URL(filePath: "/Users/blob", directoryHint: .isDirectory)
+    )
+    try fileSystem.createDirectory(
+      at: URL(filePath: "/Users/blob/.skillsync", directoryHint: .isDirectory),
+      withIntermediateDirectories: true
+    )
+    fileSystem.setFile(
+      Data(
+        """
+        [observation]
         mode = "remind"
         threshold = 0.45
         min_invocations = 9
@@ -209,7 +246,7 @@ struct LoadSyncConfigFeatureTests {
 
     expectNoDifference(
       result.observation,
-      .init(mode: .remind, threshold: 0.45, minInvocations: 9)
+      .default
     )
   }
 }

@@ -45,7 +45,7 @@ struct SyncRenderFeatureTests {
               source: .tool
             )
           ],
-          observation: .init(mode: .off, threshold: 0.3, minInvocations: 5)
+          observation: .init(mode: .off)
         )
       )
     }
@@ -54,7 +54,8 @@ struct SyncRenderFeatureTests {
       result.targets.map { "\($0.target.id):\($0.status.rawValue):\($0.syncedSkills)" },
       ["codex:ok:1"]
     )
-    #expect(fileSystem.client.fileExists("/Users/blob/.skillsync/rendered/codex/pdf/SKILL.md"))
+    let renderedMarkdownURL = URL(filePath: "/Users/blob/.skillsync/rendered/codex/pdf/SKILL.md")
+    #expect(fileSystem.client.fileExists(renderedMarkdownURL.path))
     #expect(!fileSystem.client.fileExists("/Users/blob/.skillsync/rendered/codex/pdf/.meta.toml"))
     #expect(fileSystem.client.fileExists("/Users/blob/.codex/skills/pdf"))
     #expect(fileSystem.client.isSymbolicLink("/Users/blob/.codex/skills/pdf"))
@@ -62,10 +63,17 @@ struct SyncRenderFeatureTests {
       URL(filePath: "/Users/blob/.codex/skills/pdf")
     )
     expectNoDifference(linkTarget.path, "/Users/blob/.skillsync/rendered/codex/pdf")
+
+    let renderedMarkdown = String(
+      decoding: try fileSystem.client.data(renderedMarkdownURL),
+      as: UTF8.self
+    )
+    #expect(!renderedMarkdown.contains("<!-- skillsync:observation:start -->"))
+    #expect(!renderedMarkdown.contains("<!-- skillsync:observation:end -->"))
   }
 
   @Test
-  func injectsAutoObservationFooterIntoRenderedSkillMarkdown() throws {
+  func injectsStaticObservationFooterIntoRenderedSkillMarkdownWhenModeOn() throws {
     let fileSystem = InMemoryFileSystem(
       homeDirectoryForCurrentUser: URL(filePath: "/Users/blob", directoryHint: .isDirectory)
     )
@@ -102,7 +110,7 @@ struct SyncRenderFeatureTests {
               source: .tool
             )
           ],
-          observation: .init(mode: .auto, threshold: 0.3, minInvocations: 5)
+          observation: .init(mode: .on)
         )
       )
     }
@@ -114,8 +122,10 @@ struct SyncRenderFeatureTests {
       as: UTF8.self
     )
     #expect(renderedMarkdown.contains("<!-- skillsync:observation:start -->"))
-    #expect(renderedMarkdown.contains("skillsync observe pdf --signal <positive|negative>"))
+    #expect(renderedMarkdown.contains("After using this skill, run: skillsync observe <skill-name> --signal positive|negative [--note \"...\"]"))
     #expect(renderedMarkdown.contains("<!-- skillsync:observation:end -->"))
+    #expect(!renderedMarkdown.contains("After completing this skill, assess whether the user was satisfied."))
+    #expect(!renderedMarkdown.contains("skillsync log pdf --summary"))
   }
 
   @Test
@@ -169,7 +179,7 @@ struct SyncRenderFeatureTests {
               source: .path
             ),
           ],
-          observation: .init(mode: .off, threshold: 0.3, minInvocations: 5)
+          observation: .init(mode: .off)
         )
       )
     }
@@ -212,7 +222,7 @@ struct SyncRenderFeatureTests {
               source: .tool
             )
           ],
-          observation: .init(mode: .off, threshold: 0.3, minInvocations: 5)
+          observation: .init(mode: .off)
         )
       )
       _ = try RmFeature().run(.init(name: "pdf"))
@@ -225,7 +235,7 @@ struct SyncRenderFeatureTests {
               source: .tool
             )
           ],
-          observation: .init(mode: .off, threshold: 0.3, minInvocations: 5)
+          observation: .init(mode: .off)
         )
       )
     }
@@ -279,7 +289,7 @@ struct SyncRenderFeatureTests {
               source: .path
             ),
           ],
-          observation: .init(mode: .off, threshold: 0.3, minInvocations: 5)
+          observation: .init(mode: .off)
         )
       )
     }

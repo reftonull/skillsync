@@ -26,7 +26,7 @@ struct SaveSyncConfigFeatureTests {
             .init(id: "codex", path: "~/.codex/skills", source: .tool),
             .init(id: "project-codex", path: "/Users/blob/work/.codex/skills", source: .project),
           ],
-          observation: .init(mode: .remind, threshold: 0.5, minInvocations: 7)
+          observation: .init(mode: .off)
         )
       )
     }
@@ -44,9 +44,7 @@ struct SaveSyncConfigFeatureTests {
       version = "1"
 
       [observation]
-      mode = "remind"
-      threshold = 0.5
-      min_invocations = 7
+      mode = "off"
 
       [[targets]]
       id = "codex"

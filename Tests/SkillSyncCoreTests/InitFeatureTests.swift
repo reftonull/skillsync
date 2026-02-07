@@ -36,6 +36,10 @@ struct InitFeatureTests {
     #expect(!configContents.contains("[tools.claude-code]"))
     #expect(!configContents.contains("[tools.codex]"))
     #expect(!configContents.contains("[tools.cursor]"))
+    #expect(configContents.contains("[observation]"))
+    #expect(configContents.contains("mode = \"on\""))
+    #expect(!configContents.contains("threshold ="))
+    #expect(!configContents.contains("min_invocations ="))
   }
 
   @Test

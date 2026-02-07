@@ -34,8 +34,6 @@ public struct SaveSyncConfigFeature {
     lines.append("")
     lines.append("[observation]")
     lines.append("mode = \"\(input.observation.mode.rawValue)\"")
-    lines.append("threshold = \(input.observation.threshold)")
-    lines.append("min_invocations = \(input.observation.minInvocations)")
 
     for target in input.targets {
       lines.append("")

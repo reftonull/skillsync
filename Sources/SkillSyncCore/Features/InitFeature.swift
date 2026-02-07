@@ -46,8 +46,6 @@ public struct InitFeature {
     version = "1"
 
     [observation]
-    mode = "auto"
-    threshold = 0.3
-    min_invocations = 5
+    mode = "on"
     """
 }

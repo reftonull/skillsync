@@ -104,6 +104,7 @@ skillsync target list
 skillsync sync
 skillsync diff <name>   # JSON output by default (no --json flag)
 skillsync info <name>
+skillsync observe <name> --signal <positive|negative> [--note "..."]
 skillsync export <name> <path>
 skillsync version
 ```
@@ -112,7 +113,6 @@ Planned next:
 
 ```
 skillsync config
-skillsync observe <name> --signal <positive|negative> [--note "..."]
 skillsync log <name>
 skillsync log <name> --summary
 ```
@@ -195,79 +195,61 @@ Lock behavior:
 3. `skillsync edit <name> --force` is the explicit stale-lock takeover path.
 4. `skillsync abort <name>` or `skillsync commit <name>` releases the lock.
 
-## Agent Skills
+## Built-in Skills
 
-These are the target built-ins that ship with skillsync and get synced alongside user skills. They require LLM judgment. Some supporting backend commands are still planned.
+`skillsync sync` installs built-in skills alongside user skills for every configured target. These built-ins are authored as part of the SkillSync codebase (not user-authored) and are installed as skill directories such as:
 
-Built-in agent commands:
-- `/skillsync-new <description>`
-- `/skillsync-refine <skill-name>`
+- `~/.claude/skills/skillsync-new/`
+- `~/.claude/skills/skillsync-check/`
+- `~/.claude/skills/skillsync-refine/`
 
-### Observation (Not a Standalone Skill)
+Built-ins:
 
-Observation is handled by **footer injection during the render step in `skillsync sync`**. The CLI appends a small block to the rendered `SKILL.md` under `~/.skillsync/rendered/<destination-id>/<skill>/`. The canonical store copy under `~/.skillsync/skills/` stays clean.
+1. `skillsync-new`
+- Teaches agents how to create a new skill:
+  - `skillsync new <name> [--description "..."]`
+  - `skillsync edit <name>` to populate content
+  - `skillsync commit <name> --reason "initial authoring"`
+  - `skillsync sync`
 
-Controlled by config:
+2. `skillsync-check`
+- Teaches agents how to check a skill's performance:
+  - `skillsync info <name>` for version/stats/state
+  - `skillsync log <name> --summary` for quick performance signal
+  - if performance looks poor, tell the user and ask whether they want refinement
+  - do not proceed with refinement unless the user explicitly consents
+
+3. `skillsync-refine`
+- Teaches agents how to refine a skill after user approval:
+  - `skillsync edit <name>` to acquire lock and get working copy
+  - modify files in the editing directory
+  - `skillsync diff <name>` to review changes before commit
+  - `skillsync commit <name> --reason "..."`
+  - `skillsync sync`
+
+The split is intentional for progressive disclosure: `skillsync-check` is cheap/read-only, while `skillsync-refine` is loaded only after user approval. Built-in `SKILL.md` content should stay concise.
+
+### Observation Footer Injection
+
+Observation is handled by footer injection during `skillsync sync` into rendered copies only (`~/.skillsync/rendered/<target-id>/<skill>/SKILL.md`). Canonical skills under `~/.skillsync/skills/` stay unchanged.
+
+Config:
 
 ```toml
 [observation]
-mode = "auto"       # "auto" | "remind" | "off"
-threshold = 0.3     # negative rate to trigger nudge
-min_invocations = 5 # minimum before nudging
+mode = "on"   # "on" | "off"
 ```
 
-**`remind` mode** appended footer:
+When `mode = "on"`, inject:
 
 ```markdown
+<!-- skillsync:observation:start -->
 ---
-After completing this skill, remind the user:
-"Rate this result: `skillsync observe <skill-name> --signal <positive|negative> [--note]`"
+After using this skill, run: skillsync observe <skill-name> --signal positive|negative [--note "..."]
+<!-- skillsync:observation:end -->
 ```
 
-**`auto` mode** appended footer:
-
-```markdown
----
-After completing this skill, assess whether the user was satisfied.
-Call: skillsync observe <skill-name> --signal <positive|negative> --note "<brief reason>"
-Then call: skillsync log <skill-name> --summary
-If negative rate exceeds threshold, mention:
-"(<skill-name> has been struggling - <N>/<total> negative. `/skillsync-refine <skill-name>` when you have a moment.)"
-Otherwise, briefly note what you logged: "(logged: positive)"
-```
-
-This means no separate observer skill consuming context. Every skill self-observes. The cost is a few lines of injected text. The agent never nags about refinement. It just surfaces stats as a trailing line on something already happening.
-
-### `/skillsync-refine <skill-name>` (User-Invoked, Agent-Only)
-
-The refinement skill. User entry point is agent-only. It uses `skillsync info`, `skillsync log`, and the existing `edit -> commit -> sync` workflow.
-
-How it works:
-
-The insight from practitioners (AGENTS.md pattern, Voyager skill libraries, Addy Osmani's compound loops): refinement is about appending corrections to a text file the agent reads next time. The novelty here is observation infrastructure with real data instead of relying on user memory.
-
-Steps:
-
-1. Call `skillsync info <name>` for skill identity/state (version/hash/stats/state/source).
-2. Call `skillsync log <name>` or `skillsync log <name> --summary` for usage history.
-3. Read the current `SKILL.md` from the store.
-4. Analyze patterns in negative signals using log notes.
-5. Propose a specific diff to `SKILL.md` addressing top failure clusters.
-6. User reviews. Accepts, rejects, or edits.
-7. On accept, call `skillsync edit <name>` (or `skillsync edit <name> --force` with user consent), apply changes, then call `skillsync commit <name> --reason "<text>"` and `skillsync sync`.
-
-What it does not do: no automated refinement, no background runs, no RL training. It is a structured, human-in-the-loop edit cycle with data backing. The agent proposes. The user decides.
-
-### `/skillsync-new <description>` (User-Invoked, Agent-Only)
-
-Interactive skill authoring. Agent asks clarifying questions, then edits working files directly:
-
-1. `skillsync new <name> --description "<one-line intent>"`
-2. `skillsync edit <name>`
-3. Agent writes `SKILL.md` and assets under `~/.skillsync/editing/<name>/`
-4. `skillsync commit <name> --reason "initial authoring"`
-
-This keeps creation and updates ergonomic for agents while preserving canonical safety/audit boundaries.
+When `mode = "off"`, no footer is injected.
 
 ## .meta.toml
 
@@ -297,9 +279,7 @@ negative = 9
 version = "1"
 
 [observation]
-mode = "auto"          # "auto" | "remind" | "off"
-threshold = 0.3        # negative rate to nudge
-min_invocations = 5
+mode = "on"            # "on" | "off"
 
 [[targets]]
 id = "codex"
@@ -323,11 +303,10 @@ Targets are explicitly managed by `skillsync target ...`.
 1. Load configured targets from `[[targets]]` in `config.toml`.
 2. For each target, for each skill in the store:
    - Build/update rendered copy at `~/.skillsync/rendered/<destination-id>/<skill>/`
-   - If observation mode != `off`, inject the configured footer into rendered `SKILL.md`
+   - If observation mode is `on`, inject the static observation footer into rendered `SKILL.md`
    - Symlink target path entry to rendered skill directory
-3. Also place built-in agent skills (`skillsync-refine`, `skillsync-new`)
+3. Also place built-in skills (`skillsync-new`, `skillsync-check`, `skillsync-refine`)
 4. Prune stale managed links in configured targets
-5. Print warnings if any skills have high negative rates
 
 `sync` is best-effort: a failure on one target does not block syncing others. Final output reports per-target success/failure.
 
@@ -404,49 +383,46 @@ skillsync edit pdf
 skillsync commit pdf --reason "initial authoring"
 ```
 
-Note: Flows 4-5 describe planned observe/refine backend commands.
+Note: Flows 4-6 describe observe/check/refine behavior in agent sessions.
 
-### Flow 4: Observation Loop During Normal Use (Auto Footer)
+### Flow 4: Observation Loop During Normal Use
 
 1. Skill executes in agent session.
-2. Agent logs result:
+2. Footer reminder in rendered `SKILL.md` tells agent to log usage.
+3. Agent logs result:
 
 ```bash
 skillsync observe pdf --signal positive --note "Handled encrypted input"
-skillsync log pdf --summary
 ```
 
-3. If negative rate is high, agent nudges:
+### Flow 5: Check Skill in Agent Session (`/skillsync-check`)
 
 ```text
-/skillsync-refine pdf
+/skillsync-check pdf
 ```
-
-### Flow 5: Refine Skill in Agent Session (`/skillsync-refine`)
 
 1. Agent gathers context:
 
 ```bash
 skillsync info pdf
 skillsync log pdf --summary
-skillsync log pdf
 ```
 
-2. Agent proposes edit changes; user approves.
-3. Agent applies refinement:
+2. If performance looks poor, agent asks user whether to refine.
+
+### Flow 6: Refine Skill in Agent Session (`/skillsync-refine`)
+
+1. User approves refinement after `/skillsync-check`.
+2. Agent runs:
 
 ```bash
 skillsync edit pdf
 # if edit is locked and user approves takeover:
 # skillsync edit pdf --force
 # agent edits ~/.skillsync/editing/pdf/SKILL.md
+skillsync diff pdf
 skillsync commit pdf --reason "Improve encrypted-file handling"
-```
-
-4. Agent confirms:
-
-```bash
-skillsync log pdf --summary
+skillsync sync
 ```
 
 ## What This Doesn't Do

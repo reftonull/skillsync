@@ -21,13 +21,13 @@ Build a local-first CLI that:
 
 Implemented:
 
-1. `init`, `new`, `add`, `rm`, `ls`, `export`, `sync`, `target add/remove/list`, `version`, `diff`, `info`.
+1. `init`, `new`, `add`, `rm`, `ls`, `export`, `sync`, `target add/remove/list`, `version`, `diff`, `info`, `observe`.
 2. Single-editor workflow: `edit`, `edit --force`, `commit`, `abort` with per-skill lock files.
 3. Commit updates canonical files, bumps `version`, updates `content-hash`, and cleans `editing/<skill>`.
 
 Planned:
 
-1. `observe`, `log`.
+1. `log`.
 2. Commit reason persistence into optional refinement/change history.
 3. Global locking and stricter atomic-write guarantees.
 
@@ -100,9 +100,7 @@ skillsync/
 version = "1"
 
 [observation]
-mode = "auto"
-threshold = 0.3
-min_invocations = 5
+mode = "on"   # on | off
 
 [[targets]]
 id = "codex"
@@ -318,20 +316,49 @@ For each configured target:
 
 1. Render each active skill to `~/.skillsync/rendered/<destination-id>/<skill>/`.
 2. Copy all skill files into rendered location.
-3. Inject observation footer into rendered `SKILL.md` when mode != `off`.
+3. If observation mode is `on`, inject the static observation footer into rendered `SKILL.md`.
 4. Symlink target-path skill entry to rendered skill directory.
-5. Render/symlink built-in skills (`skillsync-new`, `skillsync-refine`).
+5. Render/symlink built-in skills (`skillsync-new`, `skillsync-check`, `skillsync-refine`).
 6. Prune stale managed links in that target.
 
 Footer idempotency markers:
 
 ```markdown
 <!-- skillsync:observation:start -->
-...
+---
+After using this skill, run: skillsync observe <skill-name> --signal positive|negative [--note "..."]
 <!-- skillsync:observation:end -->
 ```
 
 Never duplicate footer blocks.
+
+### Built-in skills
+
+Built-ins are authored in the SkillSync codebase and synced alongside user skills to every configured target.
+They appear as skill directories in each target path, for example `~/.claude/skills/skillsync-new/`, `~/.claude/skills/skillsync-check/`, and `~/.claude/skills/skillsync-refine/`.
+
+1. `skillsync-new`
+- Guides agent flow for creating a skill:
+  - `skillsync new <name> [--description "..."]`
+  - `skillsync edit <name>` to populate files
+  - `skillsync commit <name> --reason "initial authoring"`
+  - `skillsync sync`
+
+2. `skillsync-check`
+- Guides agent flow for checking performance:
+  - `skillsync info <name>`
+  - `skillsync log <name> --summary`
+  - if performance is poor, ask user whether to refine
+  - do not continue into refinement without explicit user consent
+
+3. `skillsync-refine`
+- Guides agent refinement workflow (only after user approval):
+  - `skillsync edit <name>` -> edit files in working copy
+  - `skillsync diff <name>`
+  - `skillsync commit <name> --reason "..."`
+  - `skillsync sync`
+
+Split rationale: `skillsync-check` is cheap/read-only and surfaces status, while `skillsync-refine` is a longer workflow loaded only when needed. Built-in `SKILL.md` content should remain concise and progressive.
 
 ### Observe + info + log
 
@@ -488,7 +515,7 @@ Match pfw style by injecting output dependencies instead of writing directly to 
 - Rendered mirror, footer injection, symlink installs, best-effort reporting, prune.
 
 5. **M5: Observe + refine**
-- `observe`, `info`, `log`, observation footer refinement nudge, locked edit + `commit`.
+- `observe`, `info`, `log`, static observation footer reminder, built-in check/refine split flow, locked edit + `commit`.
 
 6. **M6: Hardening**
 - Locking, atomicity, integration tests, output snapshots, docs polish.
@@ -497,8 +524,7 @@ Match pfw style by injecting output dependencies instead of writing directly to 
 
 Recommended immediate slice from current baseline:
 
-1. Implement `skillsync observe <name> --signal <positive|negative> [--note]`.
-2. Implement `skillsync log <name>` and `skillsync log <name> --summary`.
-3. Persist commit reason into optional refinement/change history once observe/log are stable.
+1. Implement `skillsync log <name>` and `skillsync log <name> --summary`.
+2. Persist commit reason into optional refinement/change history once observe/log are stable.
 
 Deliverable: complete edit lifecycle (`edit`, `diff`, `commit`, `abort`) with metadata trail and no stale write path dependence.

@@ -46,6 +46,9 @@ let package = Package(
         .product(name: "Dependencies", package: "swift-dependencies"),
         .product(name: "CustomDump", package: "swift-custom-dump"),
       ],
+      resources: [
+        .copy("Resources/BuiltInSkills")
+      ],
       swiftSettings: [
         .enableUpcomingFeature("NonisolatedNonsendingByDefault")
       ]

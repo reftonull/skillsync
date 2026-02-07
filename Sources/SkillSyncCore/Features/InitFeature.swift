@@ -14,6 +14,8 @@ public struct InitFeature {
 
   @Dependency(\.pathClient) var pathClient
   @Dependency(\.fileSystemClient) var fileSystemClient
+  @Dependency(\.builtInSkillsClient) var builtInSkillsClient
+  @Dependency(\.date.now) var now
 
   public init() {}
 
@@ -32,6 +34,7 @@ public struct InitFeature {
     try fileSystemClient.createDirectory(locks, true)
     try fileSystemClient.createDirectory(rendered, true)
     try fileSystemClient.createDirectory(logs, true)
+    try self.seedBuiltInSkills(skillsRoot: skills)
 
     let createdConfig = !fileSystemClient.fileExists(config.path)
     if createdConfig {
@@ -48,4 +51,50 @@ public struct InitFeature {
     [observation]
     mode = "on"
     """
+
+  private func seedBuiltInSkills(skillsRoot: URL) throws {
+    for skill in try builtInSkillsClient.load() {
+      let skillRoot = skillsRoot.appendingPathComponent(skill.name, isDirectory: true)
+      try fileSystemClient.createDirectory(skillRoot, true)
+      for relativePath in skill.files.keys.sorted() {
+        let destinationURL = skillRoot.appendingPathComponent(relativePath)
+        if fileSystemClient.fileExists(destinationURL.path) {
+          continue
+        }
+        guard let data = skill.files[relativePath] else { continue }
+        try fileSystemClient.createDirectory(destinationURL.deletingLastPathComponent(), true)
+        try fileSystemClient.write(data, destinationURL)
+      }
+
+      let metaURL = skillRoot.appendingPathComponent(".meta.toml")
+      if !fileSystemClient.fileExists(metaURL.path) {
+        let contentHash = try SkillContentHashFeature().run(skillDirectory: skillRoot)
+        let meta = Self.builtInMetaToml(createdAt: Self.formatDate(now), contentHash: contentHash)
+        try fileSystemClient.write(Data(meta.utf8), metaURL)
+      }
+    }
+  }
+
+  private static func builtInMetaToml(createdAt: String, contentHash: String) -> String {
+    """
+    [skill]
+    created = "\(createdAt)"
+    source = "built-in"
+    version = 1
+    content-hash = "\(contentHash)"
+    state = "active"
+
+    [stats]
+    total-invocations = 0
+    positive = 0
+    negative = 0
+    """
+  }
+
+  private static func formatDate(_ date: Date) -> String {
+    let formatter = ISO8601DateFormatter()
+    formatter.formatOptions = [.withInternetDateTime]
+    formatter.timeZone = TimeZone(secondsFromGMT: 0)
+    return formatter.string(from: date)
+  }
 }

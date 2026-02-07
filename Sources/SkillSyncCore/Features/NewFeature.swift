@@ -80,11 +80,7 @@ public struct NewFeature {
         \(description)
         """
     }
-    return """
-      # \(name)
-
-      TODO: Describe this skill.
-      """
+    return "# \(name)\n\nTODO: Describe this skill.\n"
   }
 
   private static func metaToml(createdAt: String, contentHash: String) -> String {

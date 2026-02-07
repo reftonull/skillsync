@@ -102,6 +102,7 @@ skillsync target add --project
 skillsync target remove <id>
 skillsync target list
 skillsync sync
+skillsync diff <name>   # JSON output by default (no --json flag)
 skillsync export <name> <path>
 skillsync version
 ```
@@ -109,23 +110,40 @@ skillsync version
 Planned next:
 
 ```
-skillsync diff <name>
 skillsync config
 skillsync observe <name> --signal <positive|negative> [--note "..."]
+skillsync info <name>
 skillsync log <name>
 skillsync log <name> --summary
-skillsync log <name> --full
-skillsync refine context <name> --json
-skillsync review write <name> --from <path>
+```
+
+Planned output shape for `skillsync info <name>`:
+
+```
+pdf
+  version: 3
+  state: active
+  content-hash: sha256:a1b2c3...
+  created: 2026-02-06T00:00:00Z
+  source: hand-authored
+  invocations: 12 (positive: 7, negative: 5)
 ```
 
 Planned output shape for `skillsync log <name> --summary`:
 
 ```
-invocations=14 positive=9 negative=5 last_refined=2026-01-15 days_since=22
+pdf: 12 invocations, 7 positive, 5 negative (58%)
 ```
 
-This is what the observation footer reads to decide whether to nudge.
+Planned output shape for `skillsync log <name>`:
+
+```text
+2026-02-07T10:15:00Z  positive  "Handled encrypted input well"
+2026-02-07T11:30:00Z  negative  "Failed on multi-page PDF"
+2026-02-07T14:00:00Z  negative  "Missed table extraction"
+```
+
+`info` is about identity and current state. `log` is usage history over time.
 
 ## Edit + Commit Model
 
@@ -139,9 +157,27 @@ Workflow:
 1. `skillsync edit <name>` acquires a per-skill lock and creates or refreshes editing from canonical.
 2. If lock exists, `skillsync edit <name> --force` breaks lock, resets edit copy from canonical, and acquires a new lock.
 3. CLI prints the absolute edit path. Agents edit files directly there.
-4. `skillsync diff <name>` (planned) shows pending edit changes vs canonical.
+4. `skillsync diff <name>` returns JSON changes vs canonical for agent consumption.
 5. `skillsync commit <name> --reason "<text>"` validates and atomically commits edit changes to canonical, then releases the lock.
 6. `skillsync abort <name>` discards editing copy and releases the lock without committing.
+
+`diff` JSON shape:
+
+```json
+{
+  "skill": "pdf",
+  "changes": [
+    {
+      "path": "SKILL.md",
+      "status": "modified",
+      "kind": "text",
+      "old_text": "...",
+      "new_text": "..."
+    }
+  ],
+  "summary": { "added": 0, "modified": 1, "deleted": 0 }
+}
+```
 
 `skillsync commit` responsibilities:
 
@@ -166,8 +202,6 @@ These are the target built-ins that ship with skillsync and get synced alongside
 Built-in agent commands:
 - `/skillsync-new <description>`
 - `/skillsync-refine <skill-name>`
-- `/skillsync-review <skill-name>`
-- `/skillsync-observe <skill-name> <positive|negative> [note]` (manual helper; optional)
 
 ### Observation (Not a Standalone Skill)
 
@@ -187,7 +221,7 @@ min_invocations = 5 # minimum before nudging
 ```markdown
 ---
 After completing this skill, remind the user:
-"Rate this result: `/skillsync-observe <skill-name> <positive|negative> [note]`"
+"Rate this result: `skillsync observe <skill-name> --signal <positive|negative> [--note]`"
 ```
 
 **`auto` mode** appended footer:
@@ -206,7 +240,7 @@ This means no separate observer skill consuming context. Every skill self-observ
 
 ### `/skillsync-refine <skill-name>` (User-Invoked, Agent-Only)
 
-The refinement skill. User entry point is agent-only. The CLI refine commands are backend primitives the agent calls.
+The refinement skill. User entry point is agent-only. It uses `skillsync info`, `skillsync log`, and the existing `edit -> commit -> sync` workflow.
 
 How it works:
 
@@ -214,24 +248,15 @@ The insight from practitioners (AGENTS.md pattern, Voyager skill libraries, Addy
 
 Steps:
 
-1. Call `skillsync refine context <name> --json` to get refine-ready context (stats, recent failures, refinement history, version/hash).
-2. Read the current `SKILL.md` from the store.
-3. Analyze patterns in negative signals. Group by similarity using the notes.
-4. Propose a specific diff to `SKILL.md` addressing the top cluster(s). Explain reasoning.
-5. User reviews. Accepts, rejects, or edits.
-6. On accept, call `skillsync edit <name>` (if no lock is active), edit working files, then call `skillsync commit <name> --reason "<text>"`.
-7. CLI validates edit content, atomically updates canonical files, bumps version/hash, removes edit copy, and releases lock. Refinement-entry metadata from reason is planned.
+1. Call `skillsync info <name>` for skill identity/state (version/hash/stats/state/source).
+2. Call `skillsync log <name>` or `skillsync log <name> --summary` for usage history.
+3. Read the current `SKILL.md` from the store.
+4. Analyze patterns in negative signals using log notes.
+5. Propose a specific diff to `SKILL.md` addressing top failure clusters.
+6. User reviews. Accepts, rejects, or edits.
+7. On accept, call `skillsync edit <name>` (or `skillsync edit <name> --force` with user consent), apply changes, then call `skillsync commit <name> --reason "<text>"` and `skillsync sync`.
 
 What it does not do: no automated refinement, no background runs, no RL training. It is a structured, human-in-the-loop edit cycle with data backing. The agent proposes. The user decides.
-
-### `/skillsync-review <skill-name>` (User-Invoked, Agent-Only)
-
-Generates a safety summary: what the skill actually does vs. what it claims, what capabilities it uses (file access, shell, network), and suspicious patterns. Stores summary in internal metadata via `skillsync review write <name> --from <path>`.
-
-### `/skillsync-observe <skill-name> <positive|negative> [note]` (User-Invoked, Agent-Only, Optional)
-
-Manual helper command that calls:
-`skillsync observe <skill-name> --signal <positive|negative> [--note "..."]`
 
 ### `/skillsync-new <description>` (User-Invoked, Agent-Only)
 
@@ -250,39 +275,19 @@ Every skill gets one. Auto-created on `skillsync add` and `skillsync new`. This 
 
 ```toml
 [skill]
-created = "2026-02-06"
+created = "2026-02-06T00:00:00Z"
 source = "hand-authored"
 version = 3
 content-hash = "sha256:e3b0c4..."
-
-[summary]
-what-it-does = "Guides PDF manipulation: text extraction, merging, splitting, form filling."
-capabilities = ["file-read", "file-write", "shell-exec"]
-risk-notes = "Runs Python scripts. No network access."
+state = "active"   # active | pending_remove
 
 [stats]
 total-invocations = 47
 positive = 38
 negative = 9
 
-[[review]]
-date = "2026-02-01"
-summary-path = "reviews/2026-02-01.md"
-risk-level = "low"
-
-[[refinement]]
-date = "2026-01-15"
-version-before = 1
-version-after = 2
-change = "Added error handling for encrypted PDFs"
-reason = "3/8 failures were on password-protected files"
-
-[[refinement]]
-date = "2026-01-29"
-version-before = 2
-version-after = 3
-change = "Switched from PyPDF2 to pikepdf for merge"
-reason = "Repeated corruption on large files"
+# [[refinement]] is optional/deferred.
+# Version history is tracked by version + content-hash.
 ```
 
 ## Config
@@ -320,7 +325,7 @@ Targets are explicitly managed by `skillsync target ...`.
    - Build/update rendered copy at `~/.skillsync/rendered/<destination-id>/<skill>/`
    - If observation mode != `off`, inject the configured footer into rendered `SKILL.md`
    - Symlink target path entry to rendered skill directory
-3. Also place the built-in agent skills (`skillsync-refine`, `skillsync-review`, `skillsync-new`, optional `skillsync-observe`)
+3. Also place built-in agent skills (`skillsync-refine`, `skillsync-new`)
 4. Prune stale managed links in configured targets
 5. Print warnings if any skills have high negative rates
 
@@ -399,7 +404,7 @@ skillsync edit pdf
 skillsync commit pdf --reason "initial authoring"
 ```
 
-Note: Flows 4-6 describe planned observe/refine/review backend commands.
+Note: Flows 4-5 describe planned observe/refine backend commands.
 
 ### Flow 4: Observation Loop During Normal Use (Auto Footer)
 
@@ -422,8 +427,9 @@ skillsync log pdf --summary
 1. Agent gathers context:
 
 ```bash
-skillsync refine context pdf --json
-skillsync diff pdf
+skillsync info pdf
+skillsync log pdf --summary
+skillsync log pdf
 ```
 
 2. Agent proposes edit changes; user approves.
@@ -441,20 +447,6 @@ skillsync commit pdf --reason "Improve encrypted-file handling"
 
 ```bash
 skillsync log pdf --summary
-```
-
-### Flow 6: Review Skill in Agent Session (`/skillsync-review`)
-
-1. User runs:
-
-```text
-/skillsync-review pdf
-```
-
-2. Agent writes review summary and persists it:
-
-```bash
-skillsync review write pdf --from /tmp/pdf-review-summary.md
 ```
 
 ## What This Doesn't Do

@@ -21,16 +21,15 @@ Build a local-first CLI that:
 
 Implemented:
 
-1. `init`, `new`, `add`, `rm`, `ls`, `export`, `sync`, `target add/remove/list`, `version`.
+1. `init`, `new`, `add`, `rm`, `ls`, `export`, `sync`, `target add/remove/list`, `version`, `diff`.
 2. Single-editor workflow: `edit`, `edit --force`, `commit`, `abort` with per-skill lock files.
 3. Commit updates canonical files, bumps `version`, updates `content-hash`, and cleans `editing/<skill>`.
-4. Legacy `write` command still exists (planned deprecation).
 
 Planned:
 
-1. `diff`, `observe`, `log`, `refine context`, `review write`.
-2. Commit reason persistence into refinement/change history.
-3. Global locking, stale-lock recovery, and stricter atomic-write guarantees.
+1. `observe`, `info`, `log`.
+2. Commit reason persistence into optional refinement/change history.
+3. Global locking and stricter atomic-write guarantees.
 
 ## Swift Stack
 
@@ -68,7 +67,6 @@ skillsync/
       Sync/
       Observe/
       Refine/
-      Review/
       Prune/
       Dependencies/
       Models/
@@ -141,19 +139,9 @@ state = "active"   # active | pending_remove
 total-invocations = 0
 positive = 0
 negative = 0
-
-[[review]]
-date = "2026-02-06T00:00:00Z"
-summary-path = "reviews/2026-02-06.md"
-risk-level = "low"
-
-[[refinement]]
-date = "2026-02-06T00:00:00Z"
-version-before = 1
-version-after = 2
-change = "..."
-reason = "..."
 ```
+
+`[[refinement]]` is optional/deferred. Version history is tracked by `version` + `content-hash`.
 
 ### Observation log (`logs/<skill>.jsonl`)
 
@@ -255,8 +243,10 @@ Keep a separate integration layer for real symlink and lock behavior using temp 
 - Remove and recopy `editing/<name>/` from canonical.
 - Acquire a new lock and print editing path.
 
-5. `skillsync diff <name>` (planned)
-- Show diff of canonical vs editing for that skill.
+5. `skillsync diff <name>` (JSON default output)
+- Show canonical vs editing changes for that skill as JSON (no `--json` flag).
+- Deterministic ordering by relative path.
+- Include per-file `path`, `status` (`added|modified|deleted`), `kind` (`text|binary`), and content/size fields.
 - If editing is missing, return actionable error.
 
 6. `skillsync commit <name> --reason "<text>"`
@@ -326,7 +316,7 @@ For each configured target:
 2. Copy all skill files into rendered location.
 3. Inject observation footer into rendered `SKILL.md` when mode != `off`.
 4. Symlink target-path skill entry to rendered skill directory.
-5. Render/symlink built-in skills (`skillsync-new`, `skillsync-refine`, `skillsync-review`, optional `skillsync-observe`).
+5. Render/symlink built-in skills (`skillsync-new`, `skillsync-refine`).
 6. Prune stale managed links in that target.
 
 Footer idempotency markers:
@@ -339,35 +329,45 @@ Footer idempotency markers:
 
 Never duplicate footer blocks.
 
-### Observe + log
+### Observe + info + log
 
 1. `skillsync observe <name> --signal <positive|negative> [--note]`
 - Append JSONL record.
 - Update counters in `.meta.toml`.
 
-2. `skillsync log <name>`
-- Print full log.
+2. `skillsync info <name>`
+- Print skill metadata from `.meta.toml`:
+  - version, state, content-hash, created, source, invocation totals.
+- Example:
+  - `pdf`
+  - `  version: 3`
+  - `  state: active`
+  - `  content-hash: sha256:a1b2c3...`
+  - `  created: 2026-02-06T00:00:00Z`
+  - `  source: hand-authored`
+  - `  invocations: 12 (positive: 7, negative: 5)`
 
 3. `skillsync log <name> --summary`
-- Print machine-parsable one-liner.
+- Print one-line usage summary.
+- Example: `pdf: 12 invocations, 7 positive, 5 negative (58%)`
 
-4. `skillsync log <name> --full`
-- Emit detailed refine-ready history.
+4. `skillsync log <name>`
+- Print full observation history.
+- Example:
+  - `2026-02-07T10:15:00Z  positive  "Handled encrypted input well"`
+  - `2026-02-07T11:30:00Z  negative  "Failed on multi-page PDF"`
 
-### Refine + review
+### Refine flow (no extra refine/review commands)
 
-1. `skillsync refine context <name> --json`
-- Emit context JSON (hash, version, stats, recent negatives, history).
+1. Agent reads context from:
+- `skillsync info <name>`
+- `skillsync log <name>` or `skillsync log <name> --summary`
 
 2. Refinement commit path
-- Agent acquires edit lock and edits working files after reading refine context.
+- Agent acquires edit lock and edits working files after reading info + log.
 - Agent commits via `skillsync commit <name> --reason "<text>"`.
 - `commit` currently handles hash/version update, edit cleanup, and lock release.
 - Refinement history append from reason is planned.
-
-3. `skillsync review write <name> --from <path>`
-- Save summary at `skills/<name>/reviews/<timestamp>.md`.
-- Append `[[review]]` metadata entry.
 
 ## Atomicity and Locking
 
@@ -483,8 +483,8 @@ Match pfw style by injecting output dependencies instead of writing directly to 
 4. **M4: Render/sync pipeline**
 - Rendered mirror, footer injection, symlink installs, best-effort reporting, prune.
 
-5. **M5: Observe/refine/review**
-- `observe`, `log`, `refine context`, locked edit + `commit`, `review write`.
+5. **M5: Observe + refine**
+- `observe`, `info`, `log`, observation footer refinement nudge, locked edit + `commit`.
 
 6. **M6: Hardening**
 - Locking, atomicity, integration tests, output snapshots, docs polish.
@@ -493,9 +493,9 @@ Match pfw style by injecting output dependencies instead of writing directly to 
 
 Recommended immediate slice from current baseline:
 
-1. Implement `skillsync diff <name>` (core + CLI) with deterministic output for tests.
-2. Persist commit reason into metadata (refinement/change history shape) and test it.
-3. Decide and implement `write` deprecation path (warning, alias, or removal).
-4. Start observe/log foundation (`observe`, `log --summary`) with machine-parseable output.
+1. Implement `skillsync observe <name> --signal <positive|negative> [--note]`.
+2. Implement `skillsync info <name>` from `.meta.toml`.
+3. Implement `skillsync log <name>` and `skillsync log <name> --summary`.
+4. Persist commit reason into optional refinement/change history once observe/info/log are stable.
 
 Deliverable: complete edit lifecycle (`edit`, `diff`, `commit`, `abort`) with metadata trail and no stale write path dependence.

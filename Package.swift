@@ -44,6 +44,7 @@ let package = Package(
       name: "SkillSyncCore",
       dependencies: [
         .product(name: "Dependencies", package: "swift-dependencies"),
+        .product(name: "CustomDump", package: "swift-custom-dump"),
       ],
       swiftSettings: [
         .enableUpcomingFeature("NonisolatedNonsendingByDefault")

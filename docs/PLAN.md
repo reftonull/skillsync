@@ -26,6 +26,7 @@ Status key:
 - `done` Ensure successful `commit` removes `editing/<skill>` and lock
 - `done` Remove `skillsync write` command/feature/tests and migrate remaining setup paths
 - `done` Move docs to tracked `docs/` directory and align workflow terminology
+- `done` Implement `skillsync diff <name>` with JSON default output (no `--json` flag)
 
 ## Milestones
 
@@ -46,7 +47,7 @@ Status key:
 3. Edit + Commit Workflow
 - `done` Add `skillsync edit <name>` baseline
 - `done` Add `skillsync edit <name> --force` takeover semantics
-- `todo` Add `skillsync diff <name>` (canonical vs editing)
+- `done` Add `skillsync diff <name>` with JSON default output for agent consumption
 - `done` Add `skillsync commit <name> --reason "..."` with validation + commit semantics
 - `done` Add `skillsync abort <name>` to drop edit copy and release lock
 - `done` Recompute hash + version updates inside `commit`
@@ -60,12 +61,12 @@ Status key:
 - `todo` Ensure sync/render never reads from editing
 - `todo` Improve sync output formatting consistency (`path` + `configured_path` behavior documented)
 
-5. Observe/Refine/Review
-- `todo` `skillsync observe`
-- `todo` `skillsync log` / `--summary` / `--full`
-- `todo` `skillsync refine context --json`
-- `todo` Agent refine flow uses `edit` + `commit`
-- `todo` `skillsync review write`
+5. Observe + Refine
+- `todo` `skillsync observe <name> --signal <positive|negative> [--note]`
+- `todo` `skillsync info <name>` (version, hash, stats, state)
+- `todo` `skillsync log <name>` / `--summary`
+- `todo` Observation footer shows stats + refinement suggestion when underperforming
+- `note` Refinement uses existing `edit` -> `commit` -> `sync` path with user consent
 
 6. Hardening
 - `todo` Locking + atomic writes across all mutating operations

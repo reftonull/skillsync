@@ -34,7 +34,7 @@ struct AbortFeatureTests {
       $0.fileSystemClient = fileSystem.client
       $0.date.now = Date(timeIntervalSince1970: 1_738_800_001)
     } operation: {
-      try EditFeature().run(.init(name: "pdf", reset: false))
+      try EditFeature().run(.init(name: "pdf", force: false))
     }
 
     let result = try withDependencies {

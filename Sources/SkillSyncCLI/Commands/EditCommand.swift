@@ -11,14 +11,14 @@ public struct EditCommand: AsyncParsableCommand {
   @Argument(help: "Skill name.")
   public var name: String
 
-  @Flag(name: .long, help: "Discard existing edit copy and recopy from canonical skill.")
-  public var reset = false
+  @Flag(name: .long, help: "Break existing lock, reset edit copy from canonical, and acquire new lock.")
+  public var force = false
 
   public init() {}
 
   public mutating func run() async throws {
     @Dependency(\.outputClient) var outputClient
-    let result = try EditFeature().run(.init(name: name, reset: reset))
+    let result = try EditFeature().run(.init(name: name, force: force))
     outputClient.stdout("Editing skill \(result.name) at \(result.editRoot.path)")
   }
 }

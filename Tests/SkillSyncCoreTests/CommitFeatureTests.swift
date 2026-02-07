@@ -43,7 +43,7 @@ struct CommitFeatureTests {
       $0.fileSystemClient = fileSystem.client
       $0.date.now = Date(timeIntervalSince1970: 1_738_800_001)
     } operation: {
-      try EditFeature().run(.init(name: "pdf", reset: true))
+      try EditFeature().run(.init(name: "pdf", force: true))
     }
 
     try fileSystem.write(
@@ -131,7 +131,7 @@ struct CommitFeatureTests {
       $0.fileSystemClient = fileSystem.client
       $0.date.now = Date(timeIntervalSince1970: 1_738_800_001)
     } operation: {
-      try EditFeature().run(.init(name: "pdf", reset: false))
+      try EditFeature().run(.init(name: "pdf", force: false))
     }
 
     try fileSystem.write(

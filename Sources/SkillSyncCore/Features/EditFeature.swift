@@ -4,11 +4,11 @@ import Foundation
 public struct EditFeature {
   public struct Input: Equatable, Sendable {
     public var name: String
-    public var reset: Bool
+    public var force: Bool
 
-    public init(name: String, reset: Bool) {
+    public init(name: String, force: Bool) {
       self.name = name
-      self.reset = reset
+      self.force = force
     }
   }
 
@@ -58,18 +58,15 @@ public struct EditFeature {
     let locksRoot = storeRoot.appendingPathComponent("locks", isDirectory: true)
     let lockFile = locksRoot.appendingPathComponent("\(input.name).lock")
 
-    guard !fileSystemClient.fileExists(lockFile.path) else {
-      throw Error.lockAlreadyHeld(name: input.name, lockFile: lockFile.path)
+    if fileSystemClient.fileExists(lockFile.path) {
+      guard input.force else {
+        throw Error.lockAlreadyHeld(name: input.name, lockFile: lockFile.path)
+      }
+      try fileSystemClient.removeItem(lockFile)
     }
 
-    try fileSystemClient.createDirectory(locksRoot, true)
-    try fileSystemClient.write(
-      Data(Self.lockContents(now: now, currentDirectory: pathClient.currentDirectory()).utf8),
-      lockFile
-    )
-
     try fileSystemClient.createDirectory(editingRoot, true)
-    if input.reset, fileSystemClient.fileExists(skillEditRoot.path) {
+    if input.force, fileSystemClient.fileExists(skillEditRoot.path) {
       try fileSystemClient.removeItem(skillEditRoot)
     }
     if !fileSystemClient.fileExists(skillEditRoot.path) {
@@ -79,6 +76,12 @@ public struct EditFeature {
         excluding: [".meta.toml"]
       )
     }
+
+    try fileSystemClient.createDirectory(locksRoot, true)
+    try fileSystemClient.write(
+      Data(Self.lockContents(now: now, currentDirectory: pathClient.currentDirectory()).utf8),
+      lockFile
+    )
 
     return Result(
       name: input.name,

@@ -22,7 +22,7 @@ Build a local-first CLI that:
 Implemented:
 
 1. `init`, `new`, `add`, `rm`, `ls`, `export`, `sync`, `target add/remove/list`, `version`.
-2. Single-editor workflow: `edit`, `commit`, `abort` with per-skill lock files.
+2. Single-editor workflow: `edit`, `edit --force`, `commit`, `abort` with per-skill lock files.
 3. Commit updates canonical files, bumps `version`, updates `content-hash`, and cleans `editing/<skill>`.
 4. Legacy `write` command still exists (planned deprecation).
 
@@ -245,17 +245,21 @@ Keep a separate integration layer for real symlink and lock behavior using temp 
 - Import existing folder containing `SKILL.md`.
 - Initialize `.meta.toml` if missing.
 
-3. `skillsync edit <name> [--reset]`
-- Acquire lock at `locks/<name>.lock` (fail with owner/timestamp if already locked).
+3. `skillsync edit <name>`
+- Acquire lock at `locks/<name>.lock` (fail with lock path if already locked).
 - Ensure `editing/<name>/` exists and is based on canonical `skills/<name>/`.
-- `--reset` discards edit changes and recopies canonical.
 - Print absolute editing path for agent/file-editor use.
 
-4. `skillsync diff <name>` (planned)
+4. `skillsync edit <name> --force`
+- Break existing lock if present.
+- Remove and recopy `editing/<name>/` from canonical.
+- Acquire a new lock and print editing path.
+
+5. `skillsync diff <name>` (planned)
 - Show diff of canonical vs editing for that skill.
 - If editing is missing, return actionable error.
 
-5. `skillsync commit <name> --reason "<text>"`
+6. `skillsync commit <name> --reason "<text>"`
 - Require existing lock ownership for `<name>`.
 - Validate edit files (no reserved/internal paths, no path escapes).
 - Copy edit files into canonical with deterministic traversal order.
@@ -264,17 +268,17 @@ Keep a separate integration layer for real symlink and lock behavior using temp 
 - Release lock on success.
 - Recording refinement/change metadata from `--reason` is planned.
 
-6. `skillsync abort <name>`
+7. `skillsync abort <name>`
 - Remove `editing/<name>/` and release lock without writing canonical.
 
-7. `skillsync rm <name>`
+8. `skillsync rm <name>`
 - Mark `skill.state = pending_remove`.
 - Physical deletion occurs during next successful prune step in `sync`.
 
-8. `skillsync ls`
+9. `skillsync ls`
 - Print skills, state, and summary stats.
 
-9. `skillsync export <name> <path>`
+10. `skillsync export <name> <path>`
 - Copy canonical skill to external path.
 
 ### Target management + sync
@@ -417,7 +421,7 @@ Cover:
 4. `rm` mark-and-prune transitions.
 5. Target parsing/writing for `[[targets]]`.
 6. `target add --project` root detection and `skills` auto-create.
-7. `edit` lifecycle (`acquire`, `prepare`, `reset`, `abort`) behavior.
+7. `edit` lifecycle (`acquire`, `force takeover`, `prepare`, `abort`) behavior.
 8. Per-skill lock behavior (already locked errors, stale lock handling).
 9. Best-effort sync result aggregation.
 10. Output formatting (`log --summary`, sync status lines, actionable errors).

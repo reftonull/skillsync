@@ -92,7 +92,8 @@ skillsync new <name> [--description "..."]
 skillsync add <path>
 skillsync rm <name>
 skillsync ls
-skillsync edit <name> [--reset]
+skillsync edit <name>
+skillsync edit <name> --force
 skillsync commit <name> --reason "<text>"
 skillsync abort <name>
 skillsync target add --tool <name>
@@ -136,10 +137,11 @@ This is what the observation footer reads to decide whether to nudge.
 Workflow:
 
 1. `skillsync edit <name>` acquires a per-skill lock and creates or refreshes editing from canonical.
-2. CLI prints the absolute edit path. Agents edit files directly there.
-3. `skillsync diff <name>` (planned) shows pending edit changes vs canonical.
-4. `skillsync commit <name> --reason "<text>"` validates and atomically commits edit changes to canonical, then releases the lock.
-5. `skillsync abort <name>` discards editing copy and releases the lock without committing.
+2. If lock exists, `skillsync edit <name> --force` breaks lock, resets edit copy from canonical, and acquires a new lock.
+3. CLI prints the absolute edit path. Agents edit files directly there.
+4. `skillsync diff <name>` (planned) shows pending edit changes vs canonical.
+5. `skillsync commit <name> --reason "<text>"` validates and atomically commits edit changes to canonical, then releases the lock.
+6. `skillsync abort <name>` discards editing copy and releases the lock without committing.
 
 `skillsync commit` responsibilities:
 
@@ -154,7 +156,8 @@ Lock behavior:
 
 1. Only one editor can hold a skill lock at a time.
 2. `skillsync edit <name>` fails with lock file path if lock already exists.
-3. `skillsync abort <name>` or `skillsync commit <name>` releases the lock.
+3. `skillsync edit <name> --force` is the explicit stale-lock takeover path.
+4. `skillsync abort <name>` or `skillsync commit <name>` releases the lock.
 
 ## Agent Skills
 
@@ -428,6 +431,8 @@ skillsync diff pdf
 
 ```bash
 skillsync edit pdf
+# if edit is locked and user approves takeover:
+# skillsync edit pdf --force
 # agent edits ~/.skillsync/editing/pdf/SKILL.md
 skillsync commit pdf --reason "Improve encrypted-file handling"
 ```

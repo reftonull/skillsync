@@ -44,7 +44,8 @@ Status key:
 - `done` Simplify `skillsync sync` to zero-arg config-driven target sync
 
 3. Edit + Commit Workflow
-- `done` Add `skillsync edit <name> [--reset]`
+- `done` Add `skillsync edit <name>` baseline
+- `done` Add `skillsync edit <name> --force` takeover semantics
 - `todo` Add `skillsync diff <name>` (canonical vs editing)
 - `done` Add `skillsync commit <name> --reason "..."` with validation + commit semantics
 - `done` Add `skillsync abort <name>` to drop edit copy and release lock

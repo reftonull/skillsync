@@ -43,7 +43,7 @@ struct EditFeatureTests {
       $0.fileSystemClient = fileSystem.client
       $0.date.now = Date(timeIntervalSince1970: 1_738_800_000)
     } operation: {
-      try EditFeature().run(.init(name: "pdf", reset: false))
+      try EditFeature().run(.init(name: "pdf", force: false))
     }
 
     #expect(result.editRoot.path == "/Users/blob/.skillsync/editing/pdf")
@@ -56,7 +56,7 @@ struct EditFeatureTests {
   }
 
   @Test
-  func resetRecopiesCanonicalIntoEditing() throws {
+  func forceBreaksLockAndRecopiesCanonicalIntoEditing() throws {
     let fileSystem = InMemoryFileSystem(
       homeDirectoryForCurrentUser: URL(filePath: "/Users/blob", directoryHint: .isDirectory)
     )
@@ -82,12 +82,16 @@ struct EditFeatureTests {
       $0.fileSystemClient = fileSystem.client
       $0.date.now = Date(timeIntervalSince1970: 1_738_800_001)
     } operation: {
-      try EditFeature().run(.init(name: "pdf", reset: false))
+      try EditFeature().run(.init(name: "pdf", force: false))
     }
 
-    try fileSystem.removeItem(at: URL(filePath: "/Users/blob/.skillsync/locks/pdf.lock"))
     try fileSystem.write(
-      Data("# pdf\n\nReset canonical\n".utf8),
+      Data("# pdf\n\nStale edit copy\n".utf8),
+      to: URL(filePath: "/Users/blob/.skillsync/editing/pdf/SKILL.md")
+    )
+
+    try fileSystem.write(
+      Data("# pdf\n\nForce canonical\n".utf8),
       to: URL(filePath: "/Users/blob/.skillsync/skills/pdf/SKILL.md")
     )
 
@@ -99,13 +103,14 @@ struct EditFeatureTests {
       $0.fileSystemClient = fileSystem.client
       $0.date.now = Date(timeIntervalSince1970: 1_738_800_002)
     } operation: {
-      try EditFeature().run(.init(name: "pdf", reset: true))
+      try EditFeature().run(.init(name: "pdf", force: true))
     }
 
     let editingSkill = try fileSystem.data(
       at: URL(filePath: "/Users/blob/.skillsync/editing/pdf/SKILL.md")
     )
-    #expect(String(decoding: editingSkill, as: UTF8.self).contains("Reset canonical"))
+    #expect(String(decoding: editingSkill, as: UTF8.self).contains("Force canonical"))
+    #expect(fileSystem.client.fileExists("/Users/blob/.skillsync/locks/pdf.lock"))
   }
 
   @Test
@@ -122,7 +127,7 @@ struct EditFeatureTests {
         )
         $0.fileSystemClient = fileSystem.client
       } operation: {
-        try EditFeature().run(.init(name: "missing", reset: false))
+        try EditFeature().run(.init(name: "missing", force: false))
       }
     }
   }
@@ -164,7 +169,7 @@ struct EditFeatureTests {
         $0.fileSystemClient = fileSystem.client
         $0.date.now = Date(timeIntervalSince1970: 1_738_800_000)
       } operation: {
-        try EditFeature().run(.init(name: "pdf", reset: false))
+        try EditFeature().run(.init(name: "pdf", force: false))
       }
     }
   }

@@ -20,7 +20,6 @@ public struct SkillSync: AsyncParsableCommand {
       SyncCommand.self,
       TargetCommand.self,
       VersionCommand.self,
-      WriteCommand.self,
     ]
   )
 

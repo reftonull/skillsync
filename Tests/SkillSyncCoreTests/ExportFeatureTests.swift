@@ -27,28 +27,13 @@ struct ExportFeatureTests {
     }
 
     try fileSystem.createDirectory(
-      at: URL(filePath: "/Users/blob/project/tmp", directoryHint: .isDirectory),
+      at: URL(filePath: "/Users/blob/.skillsync/skills/pdf/scripts", directoryHint: .isDirectory),
       withIntermediateDirectories: true
     )
     try fileSystem.write(
       Data("echo hi\n".utf8),
-      to: URL(filePath: "/Users/blob/project/tmp/run.sh")
+      to: URL(filePath: "/Users/blob/.skillsync/skills/pdf/scripts/run.sh")
     )
-    _ = try withDependencies {
-      $0.pathClient = PathClient(
-        homeDirectory: { fileSystem.homeDirectoryForCurrentUser },
-        currentDirectory: { URL(filePath: "/Users/blob/project", directoryHint: .isDirectory) }
-      )
-      $0.fileSystemClient = fileSystem.client
-    } operation: {
-      try WriteFeature().run(
-        .init(
-          skillName: "pdf",
-          destinationRelativePath: "scripts/run.sh",
-          sourcePath: "tmp/run.sh"
-        )
-      )
-    }
 
     let result = try withDependencies {
       $0.pathClient = PathClient(

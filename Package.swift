@@ -49,7 +49,9 @@ let package = Package(
         .product(name: "Crypto", package: "swift-crypto", condition: .when(platforms: [.linux])),
       ],
       resources: [
-        .copy("Resources/BuiltInSkills")
+        .embedInCode("Resources/skillsync-new.md"),
+        .embedInCode("Resources/skillsync-check.md"),
+        .embedInCode("Resources/skillsync-refine.md"),
       ],
       swiftSettings: [
         .enableUpcomingFeature("NonisolatedNonsendingByDefault")

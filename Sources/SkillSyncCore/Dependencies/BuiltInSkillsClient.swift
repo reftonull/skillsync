@@ -12,7 +12,7 @@ public struct BuiltInSkillsClient: Sendable {
 private enum BuiltInSkillsClientKey: DependencyKey {
   static var liveValue: BuiltInSkillsClient {
     BuiltInSkillsClient(
-      load: { try BuiltInSkill.seeded() }
+      load: { BuiltInSkill.seeded() }
     )
   }
 

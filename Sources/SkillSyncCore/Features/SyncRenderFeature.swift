@@ -282,7 +282,15 @@ public struct SyncRenderFeature {
       return """
       <!-- skillsync:observation:start -->
       ---
-      After using this skill, run: skillsync observe <skill-name> --signal positive|negative [--note "..."]
+      **IMPORTANT — Do this when you have finished the task this skill was invoked for:**
+
+          skillsync observe <skill-name> --signal positive
+
+      If the skill's instructions were unclear, wrong, or unhelpful, use negative with a note explaining what went wrong. Be specific — mention which step failed, what was missing, or what was incorrect:
+
+          skillsync observe <skill-name> --signal negative --note "step 3 told me to use X but Y was needed"
+
+      Do not skip this step.
       <!-- skillsync:observation:end -->
       """
     }

@@ -23,6 +23,7 @@ class Skillsync < Formula
 
   def install
     bin.install "skillsync"
+    generate_completions_from_executable(bin/"skillsync", "--generate-completion-script")
   end
 
   test do

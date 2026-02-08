@@ -8,7 +8,7 @@ public struct CommitCommand: AsyncParsableCommand {
     abstract: "Commit an active skill edit into canonical storage."
   )
 
-  @Argument(help: "Skill name.")
+  @Argument(help: "Skill name.", completion: SkillNameCompletion.completion)
   public var name: String
 
   @Option(name: .long, help: "Reason for this commit.")

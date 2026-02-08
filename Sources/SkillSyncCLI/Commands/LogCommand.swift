@@ -8,7 +8,7 @@ public struct LogCommand: AsyncParsableCommand {
     abstract: "Print observation history for a skill."
   )
 
-  @Argument(help: "Skill name.")
+  @Argument(help: "Skill name.", completion: SkillNameCompletion.completion)
   public var name: String
 
   @Flag(name: .long, help: "Print one-line summary instead of full history.")

@@ -10,7 +10,7 @@ public struct ObserveCommand: AsyncParsableCommand {
     abstract: "Log an observation for a skill and update stats."
   )
 
-  @Argument(help: "Skill name.")
+  @Argument(help: "Skill name.", completion: SkillNameCompletion.completion)
   public var name: String
 
   @Option(name: .long, help: "Observation signal: positive or negative.")

@@ -8,7 +8,7 @@ public struct ExportCommand: AsyncParsableCommand {
     abstract: "Copy a skill out of the canonical store."
   )
 
-  @Argument(help: "Skill name.")
+  @Argument(help: "Skill name.", completion: SkillNameCompletion.completion)
   public var name: String
 
   @Argument(help: "Destination path.")

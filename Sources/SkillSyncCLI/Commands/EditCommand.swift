@@ -8,7 +8,7 @@ public struct EditCommand: AsyncParsableCommand {
     abstract: "Acquire a skill edit lock and prepare an editable working copy."
   )
 
-  @Argument(help: "Skill name.")
+  @Argument(help: "Skill name.", completion: SkillNameCompletion.completion)
   public var name: String
 
   @Flag(name: .long, help: "Break existing lock, reset edit copy from canonical, and acquire new lock.")

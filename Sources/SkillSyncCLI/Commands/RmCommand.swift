@@ -8,7 +8,7 @@ public struct RmCommand: AsyncParsableCommand {
     abstract: "Mark a skill for removal (pruned on next sync)."
   )
 
-  @Argument(help: "Skill name.")
+  @Argument(help: "Skill name.", completion: SkillNameCompletion.completion)
   public var name: String
 
   public init() {}

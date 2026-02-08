@@ -8,7 +8,7 @@ public struct AbortCommand: AsyncParsableCommand {
     abstract: "Abort an active skill edit and release its lock."
   )
 
-  @Argument(help: "Skill name.")
+  @Argument(help: "Skill name.", completion: SkillNameCompletion.completion)
   public var name: String
 
   public init() {}

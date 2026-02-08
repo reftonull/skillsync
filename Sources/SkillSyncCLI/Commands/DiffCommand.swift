@@ -9,7 +9,7 @@ public struct DiffCommand: AsyncParsableCommand {
     abstract: "Show JSON diff between canonical and active edit copy for a skill."
   )
 
-  @Argument(help: "Skill name.")
+  @Argument(help: "Skill name.", completion: SkillNameCompletion.completion)
   public var name: String
 
   public init() {}

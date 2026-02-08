@@ -122,7 +122,8 @@ struct SyncRenderFeatureTests {
       as: UTF8.self
     )
     #expect(renderedMarkdown.contains("<!-- skillsync:observation:start -->"))
-    #expect(renderedMarkdown.contains("After using this skill, run: skillsync observe <skill-name> --signal positive|negative [--note \"...\"]"))
+    #expect(renderedMarkdown.contains("skillsync observe <skill-name> --signal positive"))
+    #expect(renderedMarkdown.contains("skillsync observe <skill-name> --signal negative --note"))
     #expect(renderedMarkdown.contains("<!-- skillsync:observation:end -->"))
     #expect(!renderedMarkdown.contains("After completing this skill, assess whether the user was satisfied."))
     #expect(!renderedMarkdown.contains("skillsync log pdf --summary"))

@@ -18,6 +18,7 @@ let package = Package(
     .package(url: "https://github.com/pointfreeco/swift-custom-dump", from: "1.0.0"),
     .package(url: "https://github.com/pointfreeco/swift-dependencies", from: "1.0.0"),
     .package(url: "https://github.com/pointfreeco/swift-snapshot-testing", from: "1.18.9"),
+    .package(url: "https://github.com/apple/swift-crypto", from: "3.0.0"),
   ],
   targets: [
     .executableTarget(
@@ -45,6 +46,7 @@ let package = Package(
       dependencies: [
         .product(name: "Dependencies", package: "swift-dependencies"),
         .product(name: "CustomDump", package: "swift-custom-dump"),
+        .product(name: "Crypto", package: "swift-crypto", condition: .when(platforms: [.linux])),
       ],
       resources: [
         .copy("Resources/BuiltInSkills")

@@ -34,7 +34,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build in Swift 6.0 container
+      - name: Build in Swift 6.1 container
         run: |
           docker run --rm -v "$PWD:/workspace" -w /workspace swift:6.1 \
             swift build -c release
@@ -56,7 +56,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build in Swift 6.0 container
+      - name: Build in Swift 6.1 container
         run: |
           docker run --rm -v "$PWD:/workspace" -w /workspace swift:6.1 \
             swift build -c release
@@ -93,3 +93,57 @@ jobs:
             artifacts/skillsync-macos-universal/skillsync-macos-universal.tar.gz \
             artifacts/skillsync-linux-x86_64/skillsync-linux-x86_64.tar.gz \
             artifacts/skillsync-linux-aarch64/skillsync-linux-aarch64.tar.gz
+
+      - name: Update Homebrew formula
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          SHA_MACOS=$(sha256sum artifacts/skillsync-macos-universal/skillsync-macos-universal.tar.gz | awk '{print $1}')
+          SHA_LINUX_X86=$(sha256sum artifacts/skillsync-linux-x86_64/skillsync-linux-x86_64.tar.gz | awk '{print $1}')
+          SHA_LINUX_ARM=$(sha256sum artifacts/skillsync-linux-aarch64/skillsync-linux-aarch64.tar.gz | awk '{print $1}')
+
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/reftonull/homebrew-tap.git" tap
+          mkdir -p tap/Formula
+
+          cat > tap/Formula/skillsync.rb <<'FORMULA'
+class Skillsync < Formula
+  desc "Sync skills and configuration across development tools"
+  homepage "https://github.com/reftonull/skillsync"
+  license "MIT"
+FORMULA
+
+          cat >> tap/Formula/skillsync.rb << FORMULA
+  version "${VERSION}"
+
+  on_macos do
+    url "https://github.com/reftonull/skillsync/releases/download/v#{version}/skillsync-macos-universal.tar.gz"
+    sha256 "${SHA_MACOS}"
+  end
+
+  on_linux do
+    if Hardware::CPU.arm?
+      url "https://github.com/reftonull/skillsync/releases/download/v#{version}/skillsync-linux-aarch64.tar.gz"
+      sha256 "${SHA_LINUX_ARM}"
+    else
+      url "https://github.com/reftonull/skillsync/releases/download/v#{version}/skillsync-linux-x86_64.tar.gz"
+      sha256 "${SHA_LINUX_X86}"
+    end
+  end
+
+  def install
+    bin.install "skillsync"
+  end
+
+  test do
+    assert_match version.to_s, shell_output("#{bin}/skillsync --version", 2)
+  end
+end
+FORMULA
+
+          cd tap
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/skillsync.rb
+          git commit -m "Update skillsync to ${VERSION}"
+          git push

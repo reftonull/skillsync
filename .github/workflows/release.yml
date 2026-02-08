@@ -106,40 +106,7 @@ jobs:
           git clone "https://x-access-token:${GH_TOKEN}@github.com/reftonull/homebrew-tap.git" tap
           mkdir -p tap/Formula
 
-          cat > tap/Formula/skillsync.rb <<'FORMULA'
-class Skillsync < Formula
-  desc "Sync skills and configuration across development tools"
-  homepage "https://github.com/reftonull/skillsync"
-  license "MIT"
-FORMULA
-
-          cat >> tap/Formula/skillsync.rb << FORMULA
-  version "${VERSION}"
-
-  on_macos do
-    url "https://github.com/reftonull/skillsync/releases/download/v#{version}/skillsync-macos-universal.tar.gz"
-    sha256 "${SHA_MACOS}"
-  end
-
-  on_linux do
-    if Hardware::CPU.arm?
-      url "https://github.com/reftonull/skillsync/releases/download/v#{version}/skillsync-linux-aarch64.tar.gz"
-      sha256 "${SHA_LINUX_ARM}"
-    else
-      url "https://github.com/reftonull/skillsync/releases/download/v#{version}/skillsync-linux-x86_64.tar.gz"
-      sha256 "${SHA_LINUX_X86}"
-    end
-  end
-
-  def install
-    bin.install "skillsync"
-  end
-
-  test do
-    assert_match version.to_s, shell_output("#{bin}/skillsync --version", 2)
-  end
-end
-FORMULA
+          .github/scripts/update-formula.sh "$VERSION" "$SHA_MACOS" "$SHA_LINUX_X86" "$SHA_LINUX_ARM" > tap/Formula/skillsync.rb
 
           cd tap
           git config user.name "github-actions[bot]"

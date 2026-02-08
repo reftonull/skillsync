@@ -7,7 +7,7 @@ extension ObserveFeature.Signal: ExpressibleByArgument {}
 public struct ObserveCommand: AsyncParsableCommand {
   public static let configuration = CommandConfiguration(
     commandName: "observe",
-    abstract: "Log an observation for a skill and update stats."
+    abstract: "Log an observation for a skill."
   )
 
   @Argument(help: "Skill name.", completion: SkillNameCompletion.completion)

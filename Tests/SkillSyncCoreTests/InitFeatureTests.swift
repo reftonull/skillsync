@@ -105,7 +105,17 @@ struct InitFeatureTests {
     #expect(!builtInSkills.isEmpty)
     let existingBuiltIn = try #require(builtInSkills.first)
     let config = store.appendingPathComponent("config.toml")
+    let gitignore = store.appendingPathComponent(".gitignore")
     fileSystem.setFile(Data("custom = true\n".utf8), atPath: config.path)
+    fileSystem.setFile(
+      Data(
+        """
+        # keep this
+        logs/
+        """.utf8
+      ),
+      atPath: gitignore.path
+    )
     let builtInRoot = store.appendingPathComponent("skills/\(existingBuiltIn.name)", isDirectory: true)
     try fileSystem.createDirectory(at: builtInRoot, withIntermediateDirectories: true)
     let builtInMarkdown = builtInRoot.appendingPathComponent("SKILL.md")
@@ -142,6 +152,12 @@ struct InitFeatureTests {
     #expect(result == .init(storeRoot: store, createdConfig: false))
     let configData = try fileSystem.data(at: config)
     #expect(String(decoding: configData, as: UTF8.self) == "custom = true\n")
+    let gitignoreData = try fileSystem.data(at: gitignore)
+    let gitignoreContents = String(decoding: gitignoreData, as: UTF8.self)
+    #expect(gitignoreContents.contains("# keep this"))
+    #expect(gitignoreContents.contains("logs/"))
+    #expect(gitignoreContents.contains("config.toml"))
+    #expect(gitignoreContents.contains("rendered/"))
     let markdownData = try fileSystem.data(at: builtInMarkdown)
     #expect(String(decoding: markdownData, as: UTF8.self) == "# custom-built-in\n\ncustom\n")
     let metaData = try fileSystem.data(at: builtInMeta)

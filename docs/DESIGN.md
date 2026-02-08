@@ -55,7 +55,7 @@ Agents edit skill files directly under `~/.skillsync/skills/<name>/`. Running `s
 │   ├── pdf/
 │   │   ├── SKILL.md              # The actual skill (edit directly)
 │   │   ├── scripts/
-│   │   └── .meta.toml            # Observations + refinement history (internal)
+│   │   └── .meta.toml            # Identity metadata (internal)
 │   └── code-review/
 │       ├── SKILL.md
 │       └── .meta.toml
@@ -86,6 +86,9 @@ skillsync target add --path <path>
 skillsync target add --project
 skillsync target remove <id>
 skillsync target list
+skillsync remote set [--name origin] <repo-url>
+skillsync push [-m "..."] [--remote origin]
+skillsync pull
 skillsync sync
 skillsync info <name>
 skillsync observe <name> --signal <positive|negative> [--note "..."]
@@ -363,5 +366,5 @@ skillsync sync
 - No package registry. Get skills however you want.
 - No dependency resolution. Skills are independent.
 - No automated refinement. Human initiates, human approves.
-- No cloud sync. Local-first. Put the store in git if you want history.
+- No cloud sync. Local-first. Git integration is local wrappers over your own repository/remote.
 - No conflict detection between skills. User's problem.

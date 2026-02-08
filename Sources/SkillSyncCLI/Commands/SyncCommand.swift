@@ -1,5 +1,6 @@
 import ArgumentParser
 import Dependencies
+import Foundation
 import SkillSyncCore
 
 public struct SyncCommand: AsyncParsableCommand {
@@ -45,10 +46,51 @@ public struct SyncCommand: AsyncParsableCommand {
       for line in OutputFormatting.alignedRows(rows) {
         outputClient.stdout(line)
       }
+
+      let storeRoot = pathClient.skillsyncRoot()
+      if syncResult.allSucceeded, shouldSuggestPush(storeRoot: storeRoot) {
+        outputClient.stdout("Tip: local skillsync changes are not on remote yet. Run: skillsync push")
+      }
     }
 
     if !syncResult.allSucceeded {
       throw ExitCode(1)
     }
+  }
+
+  private func shouldSuggestPush(storeRoot: URL) -> Bool {
+    @Dependency(\.fileSystemClient) var fileSystemClient
+    @Dependency(\.gitClient) var gitClient
+
+    let gitDirectory = storeRoot.appendingPathComponent(".git", isDirectory: true)
+    guard fileSystemClient.fileExists(gitDirectory.path), fileSystemClient.isDirectory(gitDirectory.path) else {
+      return false
+    }
+
+    guard
+      let upstream = try? gitClient.run(storeRoot, ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"]),
+      upstream.succeeded
+    else {
+      return false
+    }
+
+    if
+      let status = try? gitClient.run(storeRoot, ["status", "--porcelain"]),
+      status.succeeded,
+      !status.stdout.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    {
+      return true
+    }
+
+    if
+      let ahead = try? gitClient.run(storeRoot, ["rev-list", "--count", "@{u}..HEAD"]),
+      ahead.succeeded,
+      let commitsAhead = Int(ahead.stdout.trimmingCharacters(in: .whitespacesAndNewlines)),
+      commitsAhead > 0
+    {
+      return true
+    }
+
+    return false
   }
 }

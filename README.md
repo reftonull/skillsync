@@ -35,3 +35,26 @@ mv skillsync.fish ~/.config/fish/completions/skillsync.fish
 
 If installed from Homebrew using this repo's formula, completions for
 `bash`/`zsh`/`fish` are installed automatically.
+
+## Git Sync Workflow
+
+Initialize the store and connect a remote:
+
+```bash
+skillsync init
+skillsync remote set <repo-url>
+```
+
+Push local skill changes:
+
+```bash
+skillsync push
+# or with a custom commit message
+skillsync push -m "Update built-in guidance"
+```
+
+Pull on another machine and re-sync targets automatically:
+
+```bash
+skillsync pull
+```

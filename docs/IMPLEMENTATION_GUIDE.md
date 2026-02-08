@@ -23,7 +23,7 @@ Build a local-first CLI that:
 
 Implemented:
 
-1. `init`, `new`, `add`, `rm`, `ls`, `export`, `sync`, `target add/remove/list`, `version`, `info`, `observe`, `log`.
+1. `init`, `new`, `add`, `rm`, `ls`, `export`, `sync`, `target add/remove/list`, `remote set`, `push`, `pull`, `version`, `info`, `observe`, `log`.
 2. Direct editing of canonical skill files — no editing directory or locks.
 3. `sync` auto-detects content changes, bumps `version`, and updates `content-hash`.
 
@@ -157,7 +157,7 @@ Dependencies to define:
 4. `DateClient` (RFC3339 encode/decode)
 5. `TOMLClient` (decode/encode)
 6. `LockClient`
-7. `ProcessClient` (for `$EDITOR`)
+7. `GitClient` (for git subprocess calls in `remote set` / `push` / `pull`)
 8. `OutputClient` (`stdout` / `stderr`)
 9. `PathClient` (home expansion, path joins, validation)
 10. `BuiltInSkillsClient` (loads built-in skill templates for `init`; override in tests)
@@ -200,12 +200,14 @@ Keep a separate integration layer for real symlink and lock behavior using temp 
 
 1. `skillsync init`
 - Create root dirs and default config.
+- Ensure `.gitignore` contains default local-only entries (`config.toml`, `rendered/`, `logs/`).
 - Seed built-in canonical skills from bundled templates.
 - Idempotent.
 
-2. `skillsync config`
-- Open config in `$EDITOR` if available.
-- Print config path when editor launch is unavailable.
+2. `skillsync remote set [--name <remote>] <url>`
+- Ensure store exists.
+- Initialize git repository when missing.
+- Add or update remote URL.
 
 ### Skill lifecycle
 
@@ -268,6 +270,17 @@ Keep a separate integration layer for real symlink and lock behavior using temp 
 - No flags.
 - Load all configured `[[targets]]` and sync to all.
 - Error if no targets configured.
+
+### Git workflow
+
+1. `skillsync push [--remote <name>] [-m <message>]`
+- Run `git add -A`.
+- Commit only if staged diff is non-empty.
+- Push to remote branch (`--set-upstream <remote> HEAD`).
+
+2. `skillsync pull`
+- Run `git pull --ff-only` in `~/.skillsync`.
+- If targets are configured, run `sync` immediately after pull.
 
 ### Sync + render behavior
 

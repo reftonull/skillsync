@@ -38,9 +38,7 @@ public struct InitFeature {
     }
 
     let gitignore = storeRoot.appendingPathComponent(".gitignore")
-    if !fileSystemClient.fileExists(gitignore.path) {
-      try fileSystemClient.write(Data(Self.defaultGitignore.utf8), gitignore)
-    }
+    try self.ensureDefaultGitignoreEntries(at: gitignore)
 
     return Result(storeRoot: storeRoot, createdConfig: createdConfig)
   }
@@ -79,6 +77,37 @@ public struct InitFeature {
         let meta = Self.builtInMetaToml(createdAt: Self.formatDate(now), contentHash: contentHash)
         try fileSystemClient.write(Data(meta.utf8), metaURL)
       }
+    }
+  }
+
+  private func ensureDefaultGitignoreEntries(at gitignoreURL: URL) throws {
+    let requiredEntries = Self.defaultGitignore
+      .split(separator: "\n", omittingEmptySubsequences: true)
+      .map { String($0) }
+
+    if !fileSystemClient.fileExists(gitignoreURL.path) {
+      try fileSystemClient.write(Data(Self.defaultGitignore.utf8), gitignoreURL)
+      return
+    }
+
+    let existing = String(decoding: try fileSystemClient.data(gitignoreURL), as: UTF8.self)
+    let existingLines = existing
+      .split(separator: "\n", omittingEmptySubsequences: false)
+      .map { String($0) }
+
+    let missingEntries = requiredEntries.filter { !existingLines.contains($0) }
+    var merged = existingLines
+    if !missingEntries.isEmpty {
+      if !merged.isEmpty, !merged.last!.isEmpty {
+        merged.append("")
+      }
+      merged.append(contentsOf: missingEntries)
+    }
+
+    let normalized = merged.joined(separator: "\n")
+    let output = normalized.hasSuffix("\n") ? normalized : normalized + "\n"
+    if output != existing {
+      try fileSystemClient.write(Data(output.utf8), gitignoreURL)
     }
   }
 

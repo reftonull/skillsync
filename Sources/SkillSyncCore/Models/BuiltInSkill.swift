@@ -65,6 +65,10 @@ public extension BuiltInSkill {
        ```bash
        skillsync sync
        ```
+    8. If `~/.skillsync` is git-backed with a configured upstream, push updates:
+       ```bash
+       skillsync push
+       ```
 
     ## Common edge cases
 
@@ -158,7 +162,11 @@ public extension BuiltInSkill {
        ```bash
        skillsync sync
        ```
-    6. Summarize what changed and why in terms of observed failures.
+    6. If `~/.skillsync` is git-backed with a configured upstream, push updates:
+       ```bash
+       skillsync push
+       ```
+    7. Summarize what changed and why in terms of observed failures.
 
     ## Common edge cases
 

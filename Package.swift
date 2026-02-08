@@ -48,11 +48,6 @@ let package = Package(
         .product(name: "CustomDump", package: "swift-custom-dump"),
         .product(name: "Crypto", package: "swift-crypto", condition: .when(platforms: [.linux])),
       ],
-      resources: [
-        .embedInCode("Resources/skillsync-new.md"),
-        .embedInCode("Resources/skillsync-check.md"),
-        .embedInCode("Resources/skillsync-refine.md"),
-      ],
       swiftSettings: [
         .enableUpcomingFeature("NonisolatedNonsendingByDefault")
       ]

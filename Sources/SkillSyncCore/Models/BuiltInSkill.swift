@@ -30,90 +30,93 @@ public extension BuiltInSkill {
   private static let skillNew = """
     ---
     name: skillsync-new
-    description: Create a new reusable skill from a workflow, pattern, or capability.
+    description: Create or update a reusable skill from a workflow, pattern, or capability. Use when the user asks to save repeatable instructions for future sessions.
+    compatibility: Requires skillsync CLI and local filesystem access to ~/.skillsync.
     metadata:
       short-description: Create a new skill
     ---
 
     # Create a New Skill
 
-    ## Goal
+    Create skills that are concise, reusable, and easy for another agent to execute.
 
-    Create a new skill when the user asks you to save a workflow, pattern, or capability
-    as something reusable across sessions.
+    ## Workflow
 
-    ## How to create a skill
-
-    1. Choose a short, kebab-case name (e.g. `pdf-extract`, `api-auth`, `debug-memory`).
-
-    2. Create the skeleton and open it for editing:
-
+    1. Clarify intent with one concrete example of the task the skill should handle.
+    2. Pick a short kebab-case name (for example: `pdf-extract`, `api-auth`, `debug-memory`).
+    3. Create the skeleton:
        ```bash
-       skillsync new <name> --description "<one-line summary>"
-       skillsync edit <name>
+       skillsync new <name> --description "<what it does and when to use it>"
        ```
-
-       The `edit` command prints the editing path. All file writes go there.
-
-    3. Write `SKILL.md` at the editing path. This is the file future agents read when
-       the skill is invoked. Write it as clear instructions, not documentation.
-
-    4. Add any supporting files (scripts, templates, configs) alongside `SKILL.md` if needed.
-
-    5. Review and commit:
-
+    4. Read the canonical path from:
        ```bash
-       skillsync diff <name>
-       skillsync commit <name> --reason "Initial skill draft"
+       skillsync info <name> --json
+       ```
+       Use `path` from JSON.
+    5. Edit `<path>/SKILL.md`:
+       - Keep instructions imperative and specific.
+       - Keep `description` trigger-rich (what + when to use).
+       - Keep the body concise; move details to companion files when needed.
+    6. Add supporting files only when they improve repeatability:
+       - `scripts/` for deterministic repeated operations.
+       - `references/` for large context that should load on demand.
+       - `assets/` for templates/resources used in outputs.
+    7. Sync changes:
+       ```bash
        skillsync sync
        ```
 
+    ## Common edge cases
+
+    - If no sync targets are configured, run `skillsync target add ...` first, then `skillsync sync`.
+    - If the requested name is not kebab-case, propose a kebab-case alternative and use that.
+    - If the skill already exists, do not overwrite it silently; confirm whether to refine the existing skill.
+
     ## Important
 
-    - `SKILL.md` is the entry point. Without it, the skill is empty.
-    - Do not modify files outside the editing path.
+    - Keep `SKILL.md` focused on procedural guidance, not background theory.
     - Do not create or modify `.meta.toml` \u{2014} it is managed by skillsync.
-    - If `edit` reports the skill is already being edited, ask the user before using `--force`.
+    - Follow the Agent Skills format:
+      - docs index: https://agentskills.io/llms.txt
+      - specification: https://agentskills.io/specification.md
     """
 
   private static let skillCheck = """
     ---
     name: skillsync-check
-    description: Check a skill's performance from observation history and surface issues to the user.
+    description: Check a skill's performance from observation history and surface issues to the user. Use when the user asks how well a skill is performing.
+    compatibility: Requires skillsync CLI and local filesystem access to ~/.skillsync.
     metadata:
       short-description: Check skill performance
     ---
 
     # Check Skill Performance
 
-    ## Goal
+    Assess performance with concise, evidence-based output.
 
-    Check how a skill is performing and let the user know if it may need refinement.
+    ## Workflow
 
-    ## How to check a skill
+    1. Gather metrics:
+       ```bash
+       skillsync info <name> --json
+       skillsync log <name> --summary --json
+       ```
+    2. Read:
+       - `totalInvocations`
+       - `positive`
+       - `negative`
+    3. Determine status:
+       - If `totalInvocations == 0`, report insufficient data.
+       - If negative rate is roughly 30%+ with meaningful sample size, recommend refinement.
+       - Otherwise report healthy/acceptable performance.
+    4. Report in one short message with concrete numbers.
+    5. Ask for explicit approval before any refinement work.
 
-    ```bash
-    skillsync info <name> --json
-    skillsync log <name> --summary --json
-    ```
+    ## Common edge cases
 
-    Parse the JSON output to inspect:
-
-    - `totalInvocations`
-    - `positive`
-    - `negative`
-
-    Use those fields to judge current performance.
-
-    ## What to tell the user
-
-    If `totalInvocations` is `0`, there is not enough data to judge performance yet.
-
-    If the negative rate is high (roughly 30%+ with at least a few invocations), mention it:
-
-    > "<name> has been struggling (<negative>/<total> negative). Want me to try refining it?"
-
-    If performance looks fine, no action needed.
+    - If the skill has zero observations, report that there is not enough evidence yet.
+    - If `skillsync info` or `skillsync log` says the skill does not exist, report that clearly and ask which skill to check.
+    - If the user asks to refine immediately, confirm explicit consent before switching to `skillsync-refine`.
 
     ## Important
 
@@ -124,68 +127,48 @@ public extension BuiltInSkill {
   private static let skillRefine = """
     ---
     name: skillsync-refine
-    description: Refine an underperforming skill using observation history. Requires user approval.
+    description: Refine an underperforming skill using observation history. Use when observations show repeated failures and the user has approved refinement.
+    compatibility: Requires skillsync CLI and local filesystem access to ~/.skillsync.
     metadata:
       short-description: Refine a skill
     ---
 
     # Refine a Skill
 
-    ## Goal
+    Apply small, evidence-driven changes to improve reliability.
 
-    Improve a skill that has been underperforming, based on observation history.
-    Only proceed after the user has explicitly approved refinement.
+    ## Workflow
 
-    ## How to refine a skill
-
-    1. Read the full observation history to understand what's failing:
-
+    1. Confirm explicit user approval to refine.
+    2. Analyze failures:
        ```bash
        skillsync log <name> --json
        ```
-
-       Parse structured records (`timestamp`, `signal`, `note`) and focus on negative observations and their notes to identify failure patterns.
-
-    2. Open the skill for editing:
-
+       Focus on recurring negative notes and missing instructions.
+    3. Locate the skill:
        ```bash
-       skillsync edit <name>
+       skillsync info <name> --json
        ```
-
-       If the skill is already being edited, ask the user before forcing: `skillsync edit <name> --force`.
-
-    3. Read the current `SKILL.md` from the editing path (printed by `edit`).
-
-    4. Make targeted fixes based on the failure patterns. Prefer small, specific changes
-       over full rewrites.
-
-    5. Show the diff to the user before committing:
-
+       Read `path` and edit `<path>/SKILL.md`.
+    4. Make narrow edits that directly address observed failures:
+       - Clarify ambiguous instructions.
+       - Add missing preconditions/inputs.
+       - Add explicit failure handling steps.
+    5. Sync updates:
        ```bash
-       skillsync diff <name>
-       ```
-
-    6. Once the user approves, commit and sync:
-
-       ```bash
-       skillsync commit <name> --reason "Address frequent failure pattern from observations"
        skillsync sync
        ```
+    6. Summarize what changed and why in terms of observed failures.
 
-    ## How to abort
+    ## Common edge cases
 
-    If the user changes their mind or the changes aren't right, discard the editing copy:
-
-    ```bash
-    skillsync abort <name>
-    ```
-
-    This leaves the canonical skill untouched.
+    - If user approval is missing, stop and ask for explicit consent before editing.
+    - If there are no actionable negative observations, avoid speculative rewrites and state that no clear refinement target was found.
+    - If `skillsync info` fails because the skill is missing, report the error and ask the user which skill to refine.
 
     ## Important
 
     - Never refine without user consent.
     - Do not modify `.meta.toml`.
-    - Always show the diff before committing.
     """
 }

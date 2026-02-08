@@ -6,6 +6,10 @@ A dotfiles manager for AI agent skills. One canonical store, synced to any agent
 
 **Not a package manager.** No registry, no publishing, no dependency resolution. You have skills on disk. This tool manages them.
 
+Reference for skill format standards:
+- Agent Skills docs index: https://agentskills.io/llms.txt
+- Agent Skills specification: https://agentskills.io/specification.md
+
 ## Architecture
 
 ```
@@ -21,14 +25,8 @@ A dotfiles manager for AI agent skills. One canonical store, synced to any agent
 │         │                             │               │
 │         ▼                             ▼               │
 │    ┌──────────────────────────────────────┐           │
-│    │     ~/.skillsync/ (canonical)        │           │
-│    │   CLI-owned committed skill state    │           │
-│    └──────────────────────────────────────┘           │
-│         ▲                                             │
-│         │  skillsync commit (validate + commit)       │
-│    ┌──────────────────────────────────────┐           │
-│    │      ~/.skillsync/editing/           │           │
-│    │   Single-editor working copy         │           │
+│    │     ~/.skillsync/skills/ (canonical) │           │
+│    │   Edit files directly here           │           │
 │    └──────────────────────────────────────┘           │
 │         │                                             │
 │         ▼  skillsync sync (render + link)             │
@@ -45,7 +43,7 @@ A dotfiles manager for AI agent skills. One canonical store, synced to any agent
 └──────────────────────────────────────────────────────┘
 ```
 
-**Hard rule:** Agents may edit files directly only under `~/.skillsync/editing/`. Committed state under `~/.skillsync/skills/` is updated only by CLI (`skillsync commit`). Only one active editor per skill is allowed at a time via per-skill lock files.
+Agents edit skill files directly under `~/.skillsync/skills/<name>/`. Running `skillsync sync` auto-detects content changes, bumps version and content hash, then renders and symlinks to targets.
 
 ## The Store
 
@@ -54,22 +52,12 @@ A dotfiles manager for AI agent skills. One canonical store, synced to any agent
 ├── config.toml
 ├── skills/
 │   ├── pdf/
-│   │   ├── SKILL.md              # The actual skill
+│   │   ├── SKILL.md              # The actual skill (edit directly)
 │   │   ├── scripts/
 │   │   └── .meta.toml            # Observations + refinement history (internal)
 │   └── code-review/
 │       ├── SKILL.md
 │       └── .meta.toml
-├── editing/
-│   ├── pdf/
-│   │   ├── SKILL.md              # Agent-edited working copy
-│   │   └── scripts/
-│   └── code-review/
-│       ├── SKILL.md
-│       └── scripts/
-├── locks/
-│   ├── pdf.lock                  # Per-skill edit lock (timestamp + context)
-│   └── code-review.lock
 ├── rendered/
 │   ├── claude-code/
 │   │   ├── pdf/
@@ -92,17 +80,12 @@ skillsync new <name> [--description "..."]
 skillsync add <path>
 skillsync rm <name>
 skillsync ls
-skillsync edit <name>
-skillsync edit <name> --force
-skillsync commit <name> --reason "<text>"
-skillsync abort <name>
 skillsync target add --tool <name>
 skillsync target add --path <path>
 skillsync target add --project
 skillsync target remove <id>
 skillsync target list
 skillsync sync
-skillsync diff <name>   # JSON output by default (no --json flag)
 skillsync info <name>
 skillsync observe <name> --signal <positive|negative> [--note "..."]
 skillsync log <name>
@@ -121,6 +104,7 @@ Output shape for `skillsync info <name>`:
 
 ```
 pdf
+  path: /Users/blob/.skillsync/skills/pdf
   version: 3
   state: active
   content-hash: sha256:a1b2c3...
@@ -151,60 +135,10 @@ Output shape for `skillsync log <name>`:
 
 `info` is about identity and current state. `log` is usage history over time.
 
-## Edit + Commit Model
-
-`skillsync` uses two skill states:
-
-1. Canonical (`~/.skillsync/skills/<name>/`): committed source of truth used for sync/render.
-2. Editing (`~/.skillsync/editing/<name>/`): active working tree for the current lock holder.
-
-Workflow:
-
-1. `skillsync edit <name>` acquires a per-skill lock and creates or refreshes editing from canonical.
-2. If lock exists, `skillsync edit <name> --force` breaks lock, resets edit copy from canonical, and acquires a new lock.
-3. CLI prints the absolute edit path. Agents edit files directly there.
-4. `skillsync diff <name>` returns JSON changes vs canonical for agent consumption.
-5. `skillsync commit <name> --reason "<text>"` validates and atomically commits edit changes to canonical, then releases the lock.
-6. `skillsync abort <name>` discards editing copy and releases the lock without committing.
-
-`diff` JSON shape:
-
-```json
-{
-  "skill": "pdf",
-  "changes": [
-    {
-      "path": "SKILL.md",
-      "status": "modified",
-      "kind": "text",
-      "old_text": "...",
-      "new_text": "..."
-    }
-  ],
-  "summary": { "added": 0, "modified": 1, "deleted": 0 }
-}
-```
-
-`skillsync commit` responsibilities:
-
-1. Validate allowed paths and block reserved/internal files.
-2. Copy edit files to canonical with deterministic traversal.
-3. Recompute `content-hash` and bump version.
-4. Remove the active `editing/<name>` directory on success.
-5. Release the edit lock on success.
-6. Record refinement/change metadata from `--reason` is planned.
-
-Lock behavior:
-
-1. Only one editor can hold a skill lock at a time.
-2. `skillsync edit <name>` reports that the skill is already being edited and suggests `--force`.
-3. `skillsync edit <name> --force` is the explicit stale-lock takeover path.
-4. `skillsync abort <name>` or `skillsync commit <name>` releases the lock.
-
 ## Built-in Skills
 
 Built-ins are seeded by `skillsync init` into canonical `~/.skillsync/skills/` from bundled templates.
-They are first-class skills, so they can be edited/refined through the same `edit -> diff -> commit` workflow as user-authored skills.
+They are first-class skills that can be edited directly and refined like any user-authored skill.
 During `skillsync sync`, built-ins are synced like any other canonical skill.
 
 They appear in targets as skill directories such as:
@@ -218,8 +152,7 @@ Built-ins:
 1. `skillsync-new`
 - Teaches agents how to create a new skill:
   - `skillsync new <name> [--description "..."]`
-  - `skillsync edit <name>` to populate content
-  - `skillsync commit <name> --reason "initial authoring"`
+  - edit `SKILL.md` directly at the skill path
   - `skillsync sync`
 
 2. `skillsync-check`
@@ -231,10 +164,9 @@ Built-ins:
 
 3. `skillsync-refine`
 - Teaches agents how to refine a skill after user approval:
-  - `skillsync edit <name>` to acquire lock and get working copy
-  - modify files in the editing directory
-  - `skillsync diff <name>` to review changes before commit
-  - `skillsync commit <name> --reason "..."`
+  - read observation history with `skillsync log <name>`
+  - run `skillsync info <name> --json` and read `path`
+  - edit `SKILL.md` at `<path>/SKILL.md`
   - `skillsync sync`
 
 The split is intentional for progressive disclosure: `skillsync-check` is cheap/read-only, while `skillsync-refine` is loaded only after user approval. Built-in `SKILL.md` content should stay concise.
@@ -311,11 +243,12 @@ Targets are explicitly managed by `skillsync target ...`.
 `skillsync sync`:
 
 1. Load configured targets from `[[targets]]` in `config.toml`.
-2. For each target, for each skill in the store:
+2. For each active skill, auto-detect content changes: recompute content hash and bump version if changed.
+3. For each target, for each skill in the store:
    - Build/update rendered copy at `~/.skillsync/rendered/<destination-id>/<skill>/`
    - If observation mode is `on`, inject the static observation footer into rendered `SKILL.md`
    - Symlink target path entry to rendered skill directory
-3. Prune stale managed links in configured targets
+4. Prune stale managed links in configured targets
 
 `sync` is best-effort: a failure on one target does not block syncing others. Final output reports per-target success/failure.
 
@@ -323,12 +256,11 @@ Footer injection means canonical `SKILL.md` stays pristine. Agent installs are a
 
 ## Safety and Lifecycle Rules
 
-1. Agents may directly edit only `~/.skillsync/editing/<name>/`.
-2. `skillsync commit <name>` is the only command that can commit edit changes into canonical `~/.skillsync/skills/<name>/`.
-3. `skillsync commit` rejects reserved/unsafe paths (`.meta.toml`, absolute paths, `..`, symlink escapes, and paths outside the skill root).
-4. Only one active editor lock per skill is allowed. `edit` fails if a lock already exists.
-5. `skillsync rm <name>` is mark-and-prune: it records intent immediately, and physical removal happens during `skillsync sync`.
-6. Prune only removes managed links (entries pointing into `~/.skillsync/rendered/`) and stale rendered directories created by skillsync.
+1. Agents edit skill files directly under `~/.skillsync/skills/<name>/`.
+2. `skillsync sync` auto-detects content changes and bumps version/hash.
+3. Do not modify `.meta.toml` — it is managed by skillsync.
+4. `skillsync rm <name>` is mark-and-prune: it records intent immediately, and physical removal happens during `skillsync sync`.
+5. Prune only removes managed links (entries pointing into `~/.skillsync/rendered/`) and stale rendered directories created by skillsync.
 
 ## Example Flows
 
@@ -387,9 +319,8 @@ skillsync sync
 
 ```bash
 skillsync new pdf --description "Extract and summarize PDF text"
-skillsync edit pdf
-# agent edits ~/.skillsync/editing/pdf/SKILL.md and scripts/extract.py directly
-skillsync commit pdf --reason "initial authoring"
+# agent edits ~/.skillsync/skills/pdf/SKILL.md directly
+skillsync sync
 ```
 
 Note: Flows 4-6 describe observe/check/refine behavior in agent sessions.
@@ -425,12 +356,8 @@ skillsync log pdf --summary
 2. Agent runs:
 
 ```bash
-skillsync edit pdf
-# if edit is locked and user approves takeover:
-# skillsync edit pdf --force
-# agent edits ~/.skillsync/editing/pdf/SKILL.md
-skillsync diff pdf
-skillsync commit pdf --reason "Improve encrypted-file handling"
+skillsync log pdf --json
+# agent reads ~/.skillsync/skills/pdf/SKILL.md and makes targeted edits
 skillsync sync
 ```
 

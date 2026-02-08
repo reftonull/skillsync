@@ -50,6 +50,7 @@ extension BaseSuite {
         stdout: {
           """
           Skill:        pdf
+          Path:         /Users/blob/.skillsync/skills/pdf
           Version:      1
           State:        active
           Source:       user
@@ -95,6 +96,7 @@ extension BaseSuite {
         JSONSerialization.jsonObject(with: Data(output.utf8)) as? [String: Any]
       )
       #expect(json["name"] as? String == "pdf")
+      #expect(json["path"] as? String == "/Users/blob/.skillsync/skills/pdf")
       #expect(json["version"] as? Int == 1)
       #expect(json["state"] as? String == "active")
       #expect(json["source"] as? String == "hand-authored")

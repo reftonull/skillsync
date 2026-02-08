@@ -12,6 +12,7 @@ public struct InfoFeature {
 
   public struct Result: Equatable, Sendable, Encodable {
     public var name: String
+    public var path: String
     public var version: Int
     public var state: String
     public var contentHash: String?
@@ -23,6 +24,7 @@ public struct InfoFeature {
 
     public init(
       name: String,
+      path: String,
       version: Int,
       state: String,
       contentHash: String?,
@@ -33,6 +35,7 @@ public struct InfoFeature {
       negative: Int
     ) {
       self.name = name
+      self.path = path
       self.version = version
       self.state = state
       self.contentHash = contentHash
@@ -46,6 +49,7 @@ public struct InfoFeature {
     public func formattedOutput() -> String {
       """
       \(name)
+        path: \(path)
         version: \(version)
         state: \(state)
         content-hash: \(contentHash ?? "unknown")
@@ -90,6 +94,7 @@ public struct InfoFeature {
 
     return .init(
       name: input.name,
+      path: skillRoot.path,
       version: meta.int(section: "skill", key: "version") ?? 0,
       state: meta.string(section: "skill", key: "state") ?? "active",
       contentHash: meta.string(section: "skill", key: "content-hash"),

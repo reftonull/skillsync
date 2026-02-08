@@ -247,6 +247,234 @@ struct SyncRenderFeatureTests {
   }
 
   @Test
+  func syncBumpsVersionWhenContentChanged() throws {
+    let fileSystem = InMemoryFileSystem(
+      homeDirectoryForCurrentUser: URL(filePath: "/Users/blob", directoryHint: .isDirectory)
+    )
+    try fileSystem.createDirectory(
+      at: URL(filePath: "/Users/blob/.codex/skills", directoryHint: .isDirectory),
+      withIntermediateDirectories: true
+    )
+
+    try withDependencies {
+      $0.pathClient = PathClient(
+        homeDirectory: { fileSystem.homeDirectoryForCurrentUser },
+        currentDirectory: { URL(filePath: "/Users/blob/project", directoryHint: .isDirectory) }
+      )
+      $0.fileSystemClient = fileSystem.client
+      $0.date.now = Date(timeIntervalSince1970: 1_738_800_000)
+    } operation: {
+      _ = try NewFeature().run(
+        .init(name: "pdf", description: "Extract text from PDFs.")
+      )
+    }
+
+    let metaURL = URL(filePath: "/Users/blob/.skillsync/skills/pdf/.meta.toml")
+    let metaBefore = try withDependencies {
+      $0.fileSystemClient = fileSystem.client
+    } operation: {
+      try UpdateMetaFeature().read(metaURL: metaURL)
+    }
+    let versionBefore = metaBefore.int(section: "skill", key: "version")
+    let hashBefore = metaBefore.string(section: "skill", key: "content-hash")
+
+    // Modify the skill content directly
+    let skillMD = URL(filePath: "/Users/blob/.skillsync/skills/pdf/SKILL.md")
+    try fileSystem.write(Data("Updated content\n".utf8), to: skillMD)
+
+    _ = try withDependencies {
+      $0.pathClient = PathClient(
+        homeDirectory: { fileSystem.homeDirectoryForCurrentUser },
+        currentDirectory: { URL(filePath: "/Users/blob/project", directoryHint: .isDirectory) }
+      )
+      $0.fileSystemClient = fileSystem.client
+    } operation: {
+      try SyncRenderFeature().run(
+        .init(
+          targets: [
+            .init(
+              id: "codex",
+              path: "/Users/blob/.codex/skills",
+              source: .tool
+            )
+          ],
+          observation: .init(mode: .off)
+        )
+      )
+    }
+
+    let metaAfter = try withDependencies {
+      $0.fileSystemClient = fileSystem.client
+    } operation: {
+      try UpdateMetaFeature().read(metaURL: metaURL)
+    }
+    let versionAfter = metaAfter.int(section: "skill", key: "version")
+    let hashAfter = metaAfter.string(section: "skill", key: "content-hash")
+
+    #expect(versionAfter == (versionBefore ?? 0) + 1)
+    #expect(hashAfter != hashBefore)
+  }
+
+  @Test
+  func syncDoesNotBumpVersionWhenContentUnchanged() throws {
+    let fileSystem = InMemoryFileSystem(
+      homeDirectoryForCurrentUser: URL(filePath: "/Users/blob", directoryHint: .isDirectory)
+    )
+    try fileSystem.createDirectory(
+      at: URL(filePath: "/Users/blob/.codex/skills", directoryHint: .isDirectory),
+      withIntermediateDirectories: true
+    )
+
+    try withDependencies {
+      $0.pathClient = PathClient(
+        homeDirectory: { fileSystem.homeDirectoryForCurrentUser },
+        currentDirectory: { URL(filePath: "/Users/blob/project", directoryHint: .isDirectory) }
+      )
+      $0.fileSystemClient = fileSystem.client
+      $0.date.now = Date(timeIntervalSince1970: 1_738_800_000)
+    } operation: {
+      _ = try NewFeature().run(
+        .init(name: "pdf", description: "Extract text from PDFs.")
+      )
+    }
+
+    let targets: [SyncTarget] = [
+      .init(id: "codex", path: "/Users/blob/.codex/skills", source: .tool)
+    ]
+    let observation = ObservationSettings(mode: .off)
+
+    // First sync
+    _ = try withDependencies {
+      $0.pathClient = PathClient(
+        homeDirectory: { fileSystem.homeDirectoryForCurrentUser },
+        currentDirectory: { URL(filePath: "/Users/blob/project", directoryHint: .isDirectory) }
+      )
+      $0.fileSystemClient = fileSystem.client
+    } operation: {
+      try SyncRenderFeature().run(.init(targets: targets, observation: observation))
+    }
+
+    let metaURL = URL(filePath: "/Users/blob/.skillsync/skills/pdf/.meta.toml")
+    let metaAfterFirst = try withDependencies {
+      $0.fileSystemClient = fileSystem.client
+    } operation: {
+      try UpdateMetaFeature().read(metaURL: metaURL)
+    }
+    let versionAfterFirst = metaAfterFirst.int(section: "skill", key: "version")
+    let hashAfterFirst = metaAfterFirst.string(section: "skill", key: "content-hash")
+
+    // Second sync with no changes
+    _ = try withDependencies {
+      $0.pathClient = PathClient(
+        homeDirectory: { fileSystem.homeDirectoryForCurrentUser },
+        currentDirectory: { URL(filePath: "/Users/blob/project", directoryHint: .isDirectory) }
+      )
+      $0.fileSystemClient = fileSystem.client
+    } operation: {
+      try SyncRenderFeature().run(.init(targets: targets, observation: observation))
+    }
+
+    let metaAfterSecond = try withDependencies {
+      $0.fileSystemClient = fileSystem.client
+    } operation: {
+      try UpdateMetaFeature().read(metaURL: metaURL)
+    }
+    let versionAfterSecond = metaAfterSecond.int(section: "skill", key: "version")
+    let hashAfterSecond = metaAfterSecond.string(section: "skill", key: "content-hash")
+
+    expectNoDifference(versionAfterSecond, versionAfterFirst)
+    expectNoDifference(hashAfterSecond, hashAfterFirst)
+  }
+
+  @Test
+  func syncHandlesMultipleSkillsWithMixedChanges() throws {
+    let fileSystem = InMemoryFileSystem(
+      homeDirectoryForCurrentUser: URL(filePath: "/Users/blob", directoryHint: .isDirectory)
+    )
+    try fileSystem.createDirectory(
+      at: URL(filePath: "/Users/blob/.codex/skills", directoryHint: .isDirectory),
+      withIntermediateDirectories: true
+    )
+
+    try withDependencies {
+      $0.pathClient = PathClient(
+        homeDirectory: { fileSystem.homeDirectoryForCurrentUser },
+        currentDirectory: { URL(filePath: "/Users/blob/project", directoryHint: .isDirectory) }
+      )
+      $0.fileSystemClient = fileSystem.client
+      $0.date.now = Date(timeIntervalSince1970: 1_738_800_000)
+    } operation: {
+      _ = try NewFeature().run(
+        .init(name: "alpha", description: "Alpha skill")
+      )
+      _ = try NewFeature().run(
+        .init(name: "beta", description: "Beta skill")
+      )
+    }
+
+    let targets: [SyncTarget] = [
+      .init(id: "codex", path: "/Users/blob/.codex/skills", source: .tool)
+    ]
+    let observation = ObservationSettings(mode: .off)
+
+    // First sync to establish baseline
+    _ = try withDependencies {
+      $0.pathClient = PathClient(
+        homeDirectory: { fileSystem.homeDirectoryForCurrentUser },
+        currentDirectory: { URL(filePath: "/Users/blob/project", directoryHint: .isDirectory) }
+      )
+      $0.fileSystemClient = fileSystem.client
+    } operation: {
+      try SyncRenderFeature().run(.init(targets: targets, observation: observation))
+    }
+
+    let alphaMetaURL = URL(filePath: "/Users/blob/.skillsync/skills/alpha/.meta.toml")
+    let betaMetaURL = URL(filePath: "/Users/blob/.skillsync/skills/beta/.meta.toml")
+
+    let alphaVersionBefore = try withDependencies {
+      $0.fileSystemClient = fileSystem.client
+    } operation: {
+      try UpdateMetaFeature().read(metaURL: alphaMetaURL).int(section: "skill", key: "version")
+    }
+    let betaVersionBefore = try withDependencies {
+      $0.fileSystemClient = fileSystem.client
+    } operation: {
+      try UpdateMetaFeature().read(metaURL: betaMetaURL).int(section: "skill", key: "version")
+    }
+
+    // Only modify alpha
+    let alphaMD = URL(filePath: "/Users/blob/.skillsync/skills/alpha/SKILL.md")
+    try fileSystem.write(Data("Changed alpha content\n".utf8), to: alphaMD)
+
+    // Second sync
+    _ = try withDependencies {
+      $0.pathClient = PathClient(
+        homeDirectory: { fileSystem.homeDirectoryForCurrentUser },
+        currentDirectory: { URL(filePath: "/Users/blob/project", directoryHint: .isDirectory) }
+      )
+      $0.fileSystemClient = fileSystem.client
+    } operation: {
+      try SyncRenderFeature().run(.init(targets: targets, observation: observation))
+    }
+
+    let alphaVersionAfter = try withDependencies {
+      $0.fileSystemClient = fileSystem.client
+    } operation: {
+      try UpdateMetaFeature().read(metaURL: alphaMetaURL).int(section: "skill", key: "version")
+    }
+    let betaVersionAfter = try withDependencies {
+      $0.fileSystemClient = fileSystem.client
+    } operation: {
+      try UpdateMetaFeature().read(metaURL: betaMetaURL).int(section: "skill", key: "version")
+    }
+
+    // Alpha should have bumped
+    #expect(alphaVersionAfter == (alphaVersionBefore ?? 0) + 1)
+    // Beta should not have changed
+    expectNoDifference(betaVersionAfter, betaVersionBefore)
+  }
+
+  @Test
   func doesNotPrunePendingRemoveFromCanonicalStoreWhenAnyDestinationFails() throws {
     let fileSystem = InMemoryFileSystem(
       homeDirectoryForCurrentUser: URL(filePath: "/Users/blob", directoryHint: .isDirectory)

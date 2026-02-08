@@ -21,12 +21,13 @@ Status key:
 - `done` Implement `skillsync export` recursive copy flow with TDD
 - `done` Implement sync/render baseline (rendered mirror, footer injection, managed symlink install, best-effort target statuses)
 - `done` Refactor sync destination management into `skillsync target` (`add`/`remove`/`list`) backed by `[[targets]]`
-- `done` Implement `skillsync edit` + `skillsync commit` + `skillsync abort` with TDD (core + CLI tests)
-- `done` Update `init` to create `editing/` and `locks/` directories
-- `done` Ensure successful `commit` removes `editing/<skill>` and lock
+- `removed` ~~Implement `skillsync edit` + `skillsync commit` + `skillsync abort`~~ (replaced by direct editing)
+- `removed` ~~Update `init` to create `editing/` and `locks/` directories~~ (no longer needed)
+- `removed` ~~Ensure successful `commit` removes `editing/<skill>` and lock~~ (no longer needed)
 - `done` Remove `skillsync write` command/feature/tests and migrate remaining setup paths
 - `done` Move docs to tracked `docs/` directory and align workflow terminology
-- `done` Implement `skillsync diff <name>` with JSON default output (no `--json` flag)
+- `removed` ~~Implement `skillsync diff <name>` with JSON default output~~ (replaced by direct editing)
+- `done` Add sync version/hash auto-detection (sync bumps version and content-hash when content changes)
 - `done` Implement `skillsync info <name>` with TDD (core + CLI tests)
 - `done` Implement `skillsync observe <name> --signal <positive|negative> [--note]` with TDD (core + CLI tests)
 - `done` Implement `skillsync log <name> [--summary]` with TDD (core + CLI tests)
@@ -50,14 +51,9 @@ Status key:
 - `done` Move config destination model to `[[targets]]`
 - `done` Simplify `skillsync sync` to zero-arg config-driven target sync
 
-3. Edit + Commit Workflow
-- `done` Add `skillsync edit <name>` baseline
-- `done` Add `skillsync edit <name> --force` takeover semantics
-- `done` Add `skillsync diff <name>` with JSON default output for agent consumption
-- `done` Add `skillsync commit <name> --reason "..."` with validation + commit semantics
-- `done` Add `skillsync abort <name>` to drop edit copy and release lock
-- `done` Recompute hash + version updates inside `commit`
-- `todo` Append refinement/change metadata from `commit --reason`
+3. Direct Editing Workflow (replaced edit/commit)
+- `removed` ~~edit, commit, abort, diff commands~~ (replaced by direct editing + sync)
+- `done` Sync auto-detects content changes and bumps version/hash
 
 4. Sync/Render Hardening
 - `done` Rendered mirror pipeline
@@ -67,7 +63,7 @@ Status key:
 - `done` Simplify observation modes to on/off (remove auto/remind, threshold, min_invocations)
 - `done` Built-ins sync via canonical store seeding (`init`) + normal sync pipeline
 - `done` Author built-in skill content (SKILL.md for skillsync-new, skillsync-check, skillsync-refine)
-- `todo` Ensure sync/render never reads from editing
+- `removed` ~~Ensure sync/render never reads from editing~~ (editing directory removed)
 - `todo` Improve sync output formatting consistency (`path` + `configured_path` behavior documented)
 
 5. Observe + Refine
@@ -75,13 +71,11 @@ Status key:
 - `done` `skillsync info <name>` (version, hash, stats, state)
 - `done` `skillsync log <name>` / `--summary`
 - `done` Observation footer injects static observe reminder when mode is `on`
-- `note` Refinement uses existing `edit` -> `commit` -> `sync` path with user consent
+- `note` Refinement uses direct editing of canonical files + `sync`
 
 6. Hardening
 - `todo` Locking + atomic writes across all mutating operations
-- `done` Per-skill single-editor lock files (`locks/<skill>.lock`) baseline
-- `todo` Stale-lock recovery path and ownership metadata
+- `removed` ~~Per-skill single-editor lock files~~ (no longer needed)
 - `todo` Integration tests for symlink + prune behavior
-- `todo` Integration tests for edit/commit lifecycle and safety checks
 - `todo` Exit code + machine-readable output contract
 - `todo` Improve stdout UX and parseability (consistent structured lines and `--json` where needed)

@@ -7,28 +7,29 @@ This guide turns `/Users/laksh/Developer/skillsync/docs/DESIGN.md` into an imple
 Build a local-first CLI that:
 
 1. Maintains canonical skills in `~/.skillsync/skills`.
-2. Maintains agent-editable working copies in `~/.skillsync/editing`.
-3. Allows only one active editor per skill via lock files.
-4. Commits edit changes to canonical via `skillsync commit` (validate + atomic commit).
-5. Cleans up `editing/<skill>` after successful commit.
-6. Renders footer-injected copies in `~/.skillsync/rendered/<target-id>/`.
-7. Symlinks target skill entries to rendered directories.
-8. Supports observation logging and human-in-the-loop refinement.
-9. Uses mark-and-prune lifecycle for skill removal (`skillsync rm`).
-10. Syncs to configured `[[targets]]` managed by `skillsync target add/remove/list`.
+2. Renders footer-injected copies in `~/.skillsync/rendered/<target-id>/`.
+3. Symlinks target skill entries to rendered directories.
+4. Auto-detects content changes during sync and bumps version/hash.
+5. Supports observation logging and human-in-the-loop refinement.
+6. Uses mark-and-prune lifecycle for skill removal (`skillsync rm`).
+7. Syncs to configured `[[targets]]` managed by `skillsync target add/remove/list`.
+
+## External References
+
+- Agent Skills docs index: https://agentskills.io/llms.txt
+- Agent Skills specification: https://agentskills.io/specification.md
 
 ## Implementation Snapshot (Current)
 
 Implemented:
 
-1. `init`, `new`, `add`, `rm`, `ls`, `export`, `sync`, `target add/remove/list`, `version`, `diff`, `info`, `observe`, `log`.
-2. Single-editor workflow: `edit`, `edit --force`, `commit`, `abort` with per-skill lock files.
-3. Commit updates canonical files, bumps `version`, updates `content-hash`, and cleans `editing/<skill>`.
+1. `init`, `new`, `add`, `rm`, `ls`, `export`, `sync`, `target add/remove/list`, `version`, `info`, `observe`, `log`.
+2. Direct editing of canonical skill files — no editing directory or locks.
+3. `sync` auto-detects content changes, bumps `version`, and updates `content-hash`.
 
 Planned:
 
-1. Commit reason persistence into optional refinement/change history.
-2. Global locking and stricter atomic-write guarantees.
+1. Global locking and stricter atomic-write guarantees.
 
 ## Swift Stack
 
@@ -109,18 +110,6 @@ source = "tool"
 
 Target rows are the single source of truth for sync destinations. `source` is informational (`tool`, `path`, `project`).
 `skillsync init` should create no default targets.
-
-### Editing layout
-
-`~/.skillsync/editing/<skill-name>/` is a working tree agents can edit directly.
-
-Rules:
-
-1. `skillsync edit <name>` acquires a per-skill lock and populates or refreshes editing from canonical.
-2. Agents edit only inside editing.
-3. `skillsync commit <name>` is the only path that commits edit changes into canonical.
-4. `skillsync abort <name>` drops editing copy and releases lock.
-5. `skillsync sync` always renders from canonical, never editing.
 
 ### `.meta.toml`
 
@@ -233,46 +222,18 @@ Keep a separate integration layer for real symlink and lock behavior using temp 
 - Import existing folder containing `SKILL.md`.
 - Initialize `.meta.toml` if missing.
 
-3. `skillsync edit <name>`
-- Acquire lock at `locks/<name>.lock` (fail with lock path if already locked).
-- Ensure `editing/<name>/` exists and is based on canonical `skills/<name>/`.
-- Print absolute editing path for agent/file-editor use.
-
-4. `skillsync edit <name> --force`
-- Break existing lock if present.
-- Remove and recopy `editing/<name>/` from canonical.
-- Acquire a new lock and print editing path.
-
-5. `skillsync diff <name>` (JSON default output)
-- Show canonical vs editing changes for that skill as JSON (no `--json` flag).
-- Deterministic ordering by relative path.
-- Include per-file `path`, `status` (`added|modified|deleted`), `kind` (`text|binary`), and content/size fields.
-- If editing is missing, return actionable error.
-
-6. `skillsync commit <name> --reason "<text>"`
-- Require existing lock ownership for `<name>`.
-- Validate edit files (no reserved/internal paths, no path escapes).
-- Copy edit files into canonical with deterministic traversal order.
-- Recompute content hash and bump version.
-- Remove `editing/<name>` on success.
-- Release lock on success.
-- Recording refinement/change metadata from `--reason` is planned.
-
-7. `skillsync abort <name>`
-- Remove `editing/<name>/` and release lock without writing canonical.
-
-8. `skillsync rm <name>`
+3. `skillsync rm <name>`
 - Mark `skill.state = pending_remove`.
 - Physical deletion occurs during next successful prune step in `sync`.
 
-9. `skillsync ls`
+4. `skillsync ls`
 - Print skills, state, and summary stats.
 
-10. `skillsync info <name>`
+5. `skillsync info <name>`
 - Print metadata from `.meta.toml`:
   - version, state, content-hash, created, source, invocation totals.
 
-11. `skillsync export <name> <path>`
+6. `skillsync export <name> <path>`
 - Copy canonical skill to external path.
 
 ### Target management + sync
@@ -314,6 +275,11 @@ Keep a separate integration layer for real symlink and lock behavior using temp 
 
 ### Sync + render behavior
 
+Before rendering targets, for each active skill:
+
+1. Recompute content hash and compare against stored `content-hash` in `.meta.toml`.
+2. If changed, update `content-hash` and increment `version` in `.meta.toml`.
+
 For each configured target:
 
 1. Render each active skill to `~/.skillsync/rendered/<destination-id>/<skill>/`.
@@ -342,8 +308,7 @@ They appear as skill directories in each target path, for example `~/.claude/ski
 1. `skillsync-new`
 - Guides agent flow for creating a skill:
   - `skillsync new <name> [--description "..."]`
-  - `skillsync edit <name>` to populate files
-  - `skillsync commit <name> --reason "initial authoring"`
+  - edit `SKILL.md` directly at the skill path
   - `skillsync sync`
 
 2. `skillsync-check`
@@ -355,9 +320,9 @@ They appear as skill directories in each target path, for example `~/.claude/ski
 
 3. `skillsync-refine`
 - Guides agent refinement workflow (only after user approval):
-  - `skillsync edit <name>` -> edit files in working copy
-  - `skillsync diff <name>`
-  - `skillsync commit <name> --reason "..."`
+  - read observation history with `skillsync log <name>`
+  - run `skillsync info <name> --json` and read `path`
+  - edit `SKILL.md` at `<path>/SKILL.md`
   - `skillsync sync`
 
 Split rationale: `skillsync-check` is cheap/read-only and surfaces status, while `skillsync-refine` is a longer workflow loaded only when needed. Built-in `SKILL.md` content should remain concise and progressive.
@@ -370,9 +335,10 @@ Split rationale: `skillsync-check` is cheap/read-only and surfaces status, while
 
 2. `skillsync info <name>`
 - Print skill metadata from `.meta.toml`:
-  - version, state, content-hash, created, source, invocation totals.
+  - path, version, state, content-hash, created, source, invocation totals.
 - Example:
   - `pdf`
+  - `  path: /Users/blob/.skillsync/skills/pdf`
   - `  version: 3`
   - `  state: active`
   - `  content-hash: sha256:a1b2c3...`
@@ -397,25 +363,16 @@ Split rationale: `skillsync-check` is cheap/read-only and surfaces status, while
 - `skillsync info <name>`
 - `skillsync log <name>` or `skillsync log <name> --summary`
 
-2. Refinement commit path
-- Agent acquires edit lock and edits working files after reading info + log.
-- Agent commits via `skillsync commit <name> --reason "<text>"`.
-- `commit` currently handles hash/version update, edit cleanup, and lock release.
-- Refinement history append from reason is planned.
+2. Agent runs `skillsync info <name> --json`, reads `path`, and edits `SKILL.md` at `<path>/SKILL.md`.
+
+3. Agent runs `skillsync sync` to apply changes. Sync auto-detects content changes and bumps version/hash.
 
 ## Atomicity and Locking
-
-Current implementation:
-
-1. Per-skill lock files (`~/.skillsync/locks/<name>.lock`) gate `edit`, `commit`, and `abort`.
-2. `commit` requires lock presence, writes canonical, then removes edit copy and lock.
-3. `edit` reports "already being edited" and points users to `--force` instead of exposing lock file paths.
 
 Hardening target:
 
 1. Add global lock (`~/.skillsync/.lock`) for config/target/sync/prune operations.
 2. Add temp-file + atomic rename flow for all mutating writes.
-3. Add stale-lock recovery policy.
 
 ## Best-Effort Sync Contract
 
@@ -450,16 +407,14 @@ target=custom-1 path=/tmp/skills status=ok
 
 Cover:
 
-1. Path guards for `commit` (absolute path, `..`, symlink escape, reserved `.meta.toml`).
-2. Footer injection idempotency and replacement markers.
-3. Observation/stat counter updates.
-4. `rm` mark-and-prune transitions.
-5. Target parsing/writing for `[[targets]]`.
-6. `target add --project` root detection and `skills` auto-create.
-7. `edit` lifecycle (`acquire`, `force takeover`, `prepare`, `abort`) behavior.
-8. Per-skill lock behavior (already locked errors, stale lock handling).
-9. Best-effort sync result aggregation.
-10. Output formatting (`log --summary`, sync status lines, actionable errors).
+1. Footer injection idempotency and replacement markers.
+2. Observation/stat counter updates.
+3. `rm` mark-and-prune transitions.
+4. Target parsing/writing for `[[targets]]`.
+5. `target add --project` root detection and `skills` auto-create.
+6. Best-effort sync result aggregation.
+7. Sync auto-detection of content changes and version/hash bumps.
+8. Output formatting (`log --summary`, sync status lines, actionable errors).
 
 Use `expectNoDifference` / `expectDifference` for structural assertions.
 
@@ -492,13 +447,12 @@ Use `expectNoDifference` / `expectDifference` for structural assertions.
 Use temp directories + live FS client for:
 
 1. Symlink semantics on macOS.
-2. Lock behavior across concurrent `sync` attempts.
-3. Atomic replace behavior.
-4. End-to-end flow:
-- `init -> target add --path ... -> new -> edit -> edit files -> commit -> sync`
+2. Atomic replace behavior.
+3. End-to-end flow:
+- `init -> target add --path ... -> new -> edit files -> sync`
 - `observe -> log --summary`
 - `rm -> sync` prune validation.
-5. Best-effort sync where one target fails and others succeed.
+4. Best-effort sync where one target fails and others succeed.
 
 ### CLI output tests and stdout capture
 
@@ -513,23 +467,22 @@ Match pfw style by injecting output dependencies instead of writing directly to 
 - `init`, `config`, `[[targets]]` parser/writer, `target add/remove/list`.
 
 3. **M3: Skill CRUD**
-- `new`, `add`, `edit`, `diff`, `commit`, `abort`, `rm`, `ls`, `export`.
+- `new`, `add`, `rm`, `ls`, `export`.
 
 4. **M4: Render/sync pipeline**
 - Rendered mirror, footer injection, symlink installs, best-effort reporting, prune.
 
 5. **M5: Observe + refine**
-- `observe`, `info`, `log`, static observation footer reminder, built-in check/refine split flow, locked edit + `commit`.
+- `observe`, `info`, `log`, static observation footer reminder, built-in check/refine split flow.
 
 6. **M6: Hardening**
-- Locking, atomicity, integration tests, output snapshots, docs polish.
+- Atomicity, integration tests, output snapshots, docs polish.
 
 ## Next Vertical Slice
 
 Recommended immediate slice from current baseline:
 
-1. Persist commit reason into optional refinement/change history now that observe/log are stable.
-2. Add stronger lock ownership + stale-lock recovery policy.
-3. Improve sync output formatting and machine-readable output contracts.
+1. Improve sync output formatting and machine-readable output contracts.
+2. Add global locking for config/target/sync operations.
 
-Deliverable: richer refinement metadata and stronger operational hardening while keeping current edit/sync workflow unchanged.
+Deliverable: stronger operational hardening with the simplified direct-edit workflow.

@@ -22,16 +22,12 @@ public struct InitFeature {
   public func run() throws -> Result {
     let storeRoot = pathClient.skillsyncRoot()
     let skills = storeRoot.appendingPathComponent("skills", isDirectory: true)
-    let editing = storeRoot.appendingPathComponent("editing", isDirectory: true)
-    let locks = storeRoot.appendingPathComponent("locks", isDirectory: true)
     let rendered = storeRoot.appendingPathComponent("rendered", isDirectory: true)
     let logs = storeRoot.appendingPathComponent("logs", isDirectory: true)
     let config = storeRoot.appendingPathComponent("config.toml")
 
     try fileSystemClient.createDirectory(storeRoot, true)
     try fileSystemClient.createDirectory(skills, true)
-    try fileSystemClient.createDirectory(editing, true)
-    try fileSystemClient.createDirectory(locks, true)
     try fileSystemClient.createDirectory(rendered, true)
     try fileSystemClient.createDirectory(logs, true)
     try self.seedBuiltInSkills(skillsRoot: skills)

@@ -52,8 +52,6 @@ struct InitFeatureTests {
     let store = URL(filePath: "/Users/blob/.skillsync", directoryHint: .isDirectory)
     #expect(result == .init(storeRoot: store, createdConfig: true))
     #expect(fileSystem.client.fileExists(store.appendingPathComponent("skills").path))
-    #expect(fileSystem.client.fileExists(store.appendingPathComponent("editing").path))
-    #expect(fileSystem.client.fileExists(store.appendingPathComponent("locks").path))
     #expect(fileSystem.client.fileExists(store.appendingPathComponent("rendered").path))
     #expect(fileSystem.client.fileExists(store.appendingPathComponent("logs").path))
     #expect(fileSystem.client.fileExists(store.appendingPathComponent("config.toml").path))

@@ -27,6 +27,7 @@ public struct InfoCommand: AsyncParsableCommand {
 
     let rows = [
       ("Skill", result.name),
+      ("Path", result.path),
       ("Version", String(result.version)),
       ("State", result.state),
       ("Source", Self.displaySource(result.source)),

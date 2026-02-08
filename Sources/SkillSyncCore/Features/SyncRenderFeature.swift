@@ -76,6 +76,10 @@ public struct SyncRenderFeature {
     let renderedRoot = pathClient.skillsyncRoot().appendingPathComponent("rendered", isDirectory: true)
     try fileSystemClient.createDirectory(renderedRoot, true)
 
+    for skill in activeSkills {
+      try refreshMetadataIfNeeded(for: skill)
+    }
+
     var targetResults: [TargetResult] = []
     for target in input.targets {
       do {
@@ -235,6 +239,21 @@ public struct SyncRenderFeature {
         try fileSystemClient.removeItem(skillRoot)
       }
     }
+  }
+
+  private func refreshMetadataIfNeeded(for skill: SkillRecord) throws {
+    let currentHash = try SkillContentHashFeature().run(skillDirectory: skill.root)
+    let metaURL = skill.root.appendingPathComponent(".meta.toml")
+    let document = try UpdateMetaFeature().read(metaURL: metaURL)
+    let storedHash = document.string(section: "skill", key: "content-hash") ?? ""
+    guard currentHash != storedHash else { return }
+    try UpdateMetaFeature().run(
+      metaURL: metaURL,
+      updates: [
+        .init(section: "skill", key: "content-hash", operation: .setString(currentHash)),
+        .init(section: "skill", key: "version", operation: .incrementInt(1)),
+      ]
+    )
   }
 
   private func loadSkills() throws -> [SkillRecord] {

@@ -73,6 +73,7 @@ struct InfoFeatureTests {
       result,
       .init(
         name: "pdf",
+        path: "/Users/blob/.skillsync/skills/pdf",
         version: 3,
         state: "active",
         contentHash: "sha256:a1b2c3",

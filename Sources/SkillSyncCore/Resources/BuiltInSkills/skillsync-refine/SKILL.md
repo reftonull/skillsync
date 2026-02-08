@@ -17,10 +17,10 @@ Only proceed after the user has explicitly approved refinement.
 1. Read the full observation history to understand what's failing:
 
    ```bash
-   skillsync log <name>
+   skillsync log <name> --json
    ```
 
-   Focus on negative observations and their notes — these describe the failure patterns.
+   Parse structured records (`timestamp`, `signal`, `note`) and focus on negative observations and their notes to identify failure patterns.
 
 2. Open the skill for editing:
 

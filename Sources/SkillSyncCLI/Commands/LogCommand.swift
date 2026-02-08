@@ -14,6 +14,9 @@ public struct LogCommand: AsyncParsableCommand {
   @Flag(name: .long, help: "Print one-line summary instead of full history.")
   public var summary = false
 
+  @Flag(name: .long, help: "Output as JSON.")
+  public var json = false
+
   public init() {}
 
   public mutating func run() async throws {
@@ -21,8 +24,26 @@ public struct LogCommand: AsyncParsableCommand {
     let result = try LogFeature().run(
       .init(name: name, summary: summary)
     )
-    for line in result.lines {
-      outputClient.stdout(line)
+
+    if json {
+      outputClient.stdout(try OutputFormatting.json(result))
+      return
+    }
+
+    if summary {
+      for line in result.lines {
+        outputClient.stdout(line)
+      }
+      return
+    }
+
+    for record in result.records {
+      let prefix = record.signal == .positive ? "+" : "-"
+      if let note = record.note {
+        outputClient.stdout("\(prefix)  \(record.timestamp)  \"\(note)\"")
+      } else {
+        outputClient.stdout("\(prefix)  \(record.timestamp)")
+      }
     }
   }
 }

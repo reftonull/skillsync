@@ -14,20 +14,25 @@ Check how a skill is performing and let the user know if it may need refinement.
 ## How to check a skill
 
 ```bash
-skillsync info <name>
-skillsync log <name> --summary
+skillsync info <name> --json
+skillsync log <name> --summary --json
 ```
 
-`info` shows the skill's version, state, and observation counters.
-`log --summary` shows a one-line performance summary: total invocations, positive/negative counts, and negative rate as a percentage.
+Parse the JSON output to inspect:
+
+- `totalInvocations`
+- `positive`
+- `negative`
+
+Use those fields to judge current performance.
 
 ## What to tell the user
 
-If the summary is `0 invocations`, there is not enough data to judge performance yet.
+If `totalInvocations` is `0`, there is not enough data to judge performance yet.
 
 If the negative rate is high (roughly 30%+ with at least a few invocations), mention it:
 
-> "<name> has been struggling — <summary line>. Want me to try refining it?"
+> "<name> has been struggling (<negative>/<total> negative). Want me to try refining it?"
 
 If performance looks fine, no action needed.
 

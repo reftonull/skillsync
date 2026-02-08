@@ -22,7 +22,24 @@ func assertCommand(
   line: UInt = #line,
   column: UInt = #column
 ) async throws {
-  let output = try await withCapturedStdout {
+  let output = try await commandOutput(arguments, dependencies: updateDependencies)
+
+  assertInlineSnapshot(
+    of: output,
+    as: .lines,
+    matches: expected,
+    fileID: fileID,
+    file: file,
+    line: line,
+    column: column
+  )
+}
+
+func commandOutput(
+  _ arguments: [String],
+  dependencies updateDependencies: @escaping (inout DependencyValues) throws -> Void = { _ in }
+) async throws -> String {
+  try await withCapturedStdout {
     try await withDependencies {
       try updateDependencies(&$0)
       $0.outputClient = OutputClient(
@@ -38,16 +55,6 @@ func assertCommand(
       }
     }
   }
-
-  assertInlineSnapshot(
-    of: output,
-    as: .lines,
-    matches: expected,
-    fileID: fileID,
-    file: file,
-    line: line,
-    column: column
-  )
 }
 
 func assertCommandThrows(

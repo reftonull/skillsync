@@ -157,13 +157,29 @@ struct LogFeatureTests {
     }
 
     expectNoDifference(
-      result.lines,
+      result.records,
       [
-        #"2026-02-07T10:15:00Z  positive  "Handled encrypted input well""#,
-        #"2026-02-07T11:30:00Z  negative  "Failed on multi-page PDF""#,
-        "2026-02-07T12:00:00Z  positive",
+        .init(
+          timestamp: "2026-02-07T10:15:00Z",
+          signal: .positive,
+          note: "Handled encrypted input well",
+          version: 3
+        ),
+        .init(
+          timestamp: "2026-02-07T11:30:00Z",
+          signal: .negative,
+          note: "Failed on multi-page PDF",
+          version: 3
+        ),
+        .init(
+          timestamp: "2026-02-07T12:00:00Z",
+          signal: .positive,
+          note: nil,
+          version: 3
+        ),
       ]
     )
+    expectNoDifference(result.lines, [])
   }
 
   @Test

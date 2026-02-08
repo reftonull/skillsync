@@ -8,6 +8,9 @@ public struct SyncCommand: AsyncParsableCommand {
     abstract: "Sync all skills to configured targets."
   )
 
+  @Flag(name: .long, help: "Output as JSON.")
+  public var json = false
+
   public init() {}
 
   public mutating func run() async throws {
@@ -25,24 +28,22 @@ public struct SyncCommand: AsyncParsableCommand {
       )
     )
 
-    for target in syncResult.targets {
-      let resolvedPath = pathClient.resolvePath(target.target.path).path
-      let configuredPathSuffix =
-        target.target.path == resolvedPath
-        ? ""
-        : " configured_path=\(target.target.path)"
-      if let error = target.error {
-        outputClient.stdout(
-          """
-          target=\(target.target.id) path=\(resolvedPath) status=failed error="\(error)"\(configuredPathSuffix)
-          """
-        )
-      } else {
-        outputClient.stdout(
-          """
-          target=\(target.target.id) path=\(resolvedPath) status=ok skills=\(target.syncedSkills)\(configuredPathSuffix)
-          """
-        )
+    if json {
+      outputClient.stdout(try OutputFormatting.json(syncResult))
+    } else {
+      var rows: [[String]] = []
+      for target in syncResult.targets {
+        let status = "[\(target.status.rawValue)]"
+        let resolvedPath = pathClient.resolvePath(target.target.path).path
+        let detail = if target.status == .ok {
+          "(\(target.syncedSkills) skills)"
+        } else {
+          "Error: \(target.error ?? "unknown")"
+        }
+        rows.append([status, target.target.id, resolvedPath, detail])
+      }
+      for line in OutputFormatting.alignedRows(rows) {
+        outputClient.stdout(line)
       }
     }
 

@@ -12,7 +12,7 @@ public struct SyncRenderFeature {
     }
   }
 
-  public struct Result: Equatable, Sendable {
+  public struct Result: Equatable, Sendable, Encodable {
     public var targets: [TargetResult]
     public var allSucceeded: Bool {
       targets.allSatisfy { $0.status == .ok }
@@ -23,8 +23,8 @@ public struct SyncRenderFeature {
     }
   }
 
-  public struct TargetResult: Equatable, Sendable {
-    public enum Status: String, Equatable, Sendable {
+  public struct TargetResult: Equatable, Sendable, Encodable {
+    public enum Status: String, Equatable, Sendable, Encodable {
       case ok
       case failed
     }

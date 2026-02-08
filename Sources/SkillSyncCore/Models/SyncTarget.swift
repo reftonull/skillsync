@@ -1,7 +1,7 @@
 import Foundation
 
-public struct SyncTarget: Equatable, Sendable {
-  public enum Source: String, Equatable, Sendable {
+public struct SyncTarget: Equatable, Sendable, Encodable {
+  public enum Source: String, Equatable, Sendable, Encodable {
     case tool
     case path
     case project

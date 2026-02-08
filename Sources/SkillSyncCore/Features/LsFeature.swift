@@ -2,7 +2,7 @@ import Dependencies
 import Foundation
 
 public struct LsFeature {
-  public struct SkillSummary: Equatable, Sendable {
+  public struct SkillSummary: Equatable, Sendable, Encodable {
     public var name: String
     public var state: String
     public var totalInvocations: Int
@@ -24,7 +24,7 @@ public struct LsFeature {
     }
   }
 
-  public struct Result: Equatable, Sendable {
+  public struct Result: Equatable, Sendable, Encodable {
     public var skills: [SkillSummary]
 
     public init(skills: [SkillSummary]) {

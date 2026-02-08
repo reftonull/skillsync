@@ -10,7 +10,7 @@ public struct InfoFeature {
     }
   }
 
-  public struct Result: Equatable, Sendable {
+  public struct Result: Equatable, Sendable, Encodable {
     public var name: String
     public var version: Int
     public var state: String

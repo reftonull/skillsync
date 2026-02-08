@@ -1,0 +1,95 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build universal binary
+        run: swift build -c release --arch arm64 --arch x86_64
+
+      - name: Package binary
+        run: |
+          mkdir -p release
+          cp .build/apple/Products/Release/skillsync release/
+          cd release
+          tar czf skillsync-macos-universal.tar.gz skillsync
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: skillsync-macos-universal
+          path: release/skillsync-macos-universal.tar.gz
+
+  build-linux-x86_64:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build in Swift 6.0 container
+        run: |
+          docker run --rm -v "$PWD:/workspace" -w /workspace swift:6.0 \
+            swift build -c release
+
+      - name: Package binary
+        run: |
+          mkdir -p release
+          cp .build/release/skillsync release/
+          cd release
+          tar czf skillsync-linux-x86_64.tar.gz skillsync
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: skillsync-linux-x86_64
+          path: release/skillsync-linux-x86_64.tar.gz
+
+  build-linux-aarch64:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build in Swift 6.0 container
+        run: |
+          docker run --rm -v "$PWD:/workspace" -w /workspace swift:6.0 \
+            swift build -c release
+
+      - name: Package binary
+        run: |
+          mkdir -p release
+          cp .build/release/skillsync release/
+          cd release
+          tar czf skillsync-linux-aarch64.tar.gz skillsync
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: skillsync-linux-aarch64
+          path: release/skillsync-linux-aarch64.tar.gz
+
+  create-release:
+    needs: [build-macos, build-linux-x86_64, build-linux-aarch64]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes \
+            artifacts/skillsync-macos-universal/skillsync-macos-universal.tar.gz \
+            artifacts/skillsync-linux-x86_64/skillsync-linux-x86_64.tar.gz \
+            artifacts/skillsync-linux-aarch64/skillsync-linux-aarch64.tar.gz

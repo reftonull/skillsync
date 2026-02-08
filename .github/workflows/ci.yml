@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # macOS: uses Xcode's Swift toolchain
+      - name: Build (macOS)
+        if: matrix.os == 'macos-latest'
+        run: swift build
+
+      - name: Test (macOS)
+        if: matrix.os == 'macos-latest'
+        run: swift test
+
+      # Linux: uses Swift 6.0 Docker container
+      - name: Build (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          docker run --rm -v "$PWD:/workspace" -w /workspace swift:6.0 \
+            swift build
+
+      - name: Test (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          docker run --rm -v "$PWD:/workspace" -w /workspace swift:6.0 \
+            swift test

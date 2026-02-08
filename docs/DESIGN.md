@@ -49,6 +49,7 @@ Agents edit skill files directly under `~/.skillsync/skills/<name>/`. Running `s
 
 ```
 ~/.skillsync/
+├── .gitignore
 ├── config.toml
 ├── skills/
 │   ├── pdf/
@@ -205,13 +206,9 @@ version = 3
 content-hash = "sha256:e3b0c4..."
 state = "active"   # active | pending_remove
 
-[stats]
-total-invocations = 47
-positive = 38
-negative = 9
-
 # [[refinement]] is optional/deferred.
 # Version history is tracked by version + content-hash.
+# Stats (invocation counts) are derived from logs/ at read time.
 ```
 
 ## Config

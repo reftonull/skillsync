@@ -74,10 +74,14 @@ struct InitFeatureTests {
       #expect(meta.contains("state = \"active\""))
       #expect(meta.contains("version = 1"))
       #expect(meta.contains("content-hash = \"sha256:"))
-      #expect(meta.contains("total-invocations = 0"))
-      #expect(meta.contains("positive = 0"))
-      #expect(meta.contains("negative = 0"))
+      #expect(!meta.contains("[stats]"))
     }
+
+    let gitignore = try fileSystem.data(at: store.appendingPathComponent(".gitignore"))
+    let gitignoreContents = String(decoding: gitignore, as: UTF8.self)
+    #expect(gitignoreContents.contains("config.toml"))
+    #expect(gitignoreContents.contains("rendered/"))
+    #expect(gitignoreContents.contains("logs/"))
 
     let config = try fileSystem.data(at: store.appendingPathComponent("config.toml"))
     let configContents = String(decoding: config, as: UTF8.self)
@@ -116,11 +120,6 @@ struct InitFeatureTests {
         version = 99
         content-hash = "sha256:custom"
         state = "active"
-
-        [stats]
-        total-invocations = 0
-        positive = 0
-        negative = 0
         """.utf8
       ),
       to: builtInMeta

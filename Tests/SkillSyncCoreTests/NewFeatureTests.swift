@@ -47,9 +47,7 @@ struct NewFeatureTests {
     #expect(meta.contains("version = 1"))
     #expect(meta.contains("state = \"active\""))
     #expect(meta.contains("content-hash = \"\(result.contentHash)\""))
-    #expect(meta.contains("total-invocations = 0"))
-    #expect(meta.contains("positive = 0"))
-    #expect(meta.contains("negative = 0"))
+    #expect(!meta.contains("[stats]"))
   }
 
   @Test

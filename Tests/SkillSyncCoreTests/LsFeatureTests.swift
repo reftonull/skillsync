@@ -50,12 +50,21 @@ struct LsFeatureTests {
         metaURL: shellMetaURL,
         updates: [
           .init(section: "skill", key: "state", operation: .setString("pending_remove")),
-          .init(section: "stats", key: "total-invocations", operation: .setInt(10)),
-          .init(section: "stats", key: "positive", operation: .setInt(7)),
-          .init(section: "stats", key: "negative", operation: .setInt(3)),
         ]
       )
     }
+
+    let logsDir = URL(filePath: "/Users/blob/.skillsync/logs", directoryHint: .isDirectory)
+    try fileSystem.createDirectory(at: logsDir, withIntermediateDirectories: true)
+    var jsonlLines: [String] = []
+    for i in 0..<7 {
+      jsonlLines.append(#"{"ts":"2025-02-06T00:0\#(i):00Z","signal":"positive","version":1}"#)
+    }
+    for i in 0..<3 {
+      jsonlLines.append(#"{"ts":"2025-02-06T01:0\#(i):00Z","signal":"negative","version":1}"#)
+    }
+    let logURL = logsDir.appendingPathComponent("shell.jsonl")
+    try fileSystem.write(Data((jsonlLines.joined(separator: "\n") + "\n").utf8), to: logURL)
 
     let result = try withDependencies {
       $0.pathClient = PathClient(

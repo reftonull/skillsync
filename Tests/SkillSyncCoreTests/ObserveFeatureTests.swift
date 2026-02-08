@@ -102,14 +102,6 @@ struct ObserveFeatureTests {
       )
     )
 
-    let meta = try withDependencies {
-      $0.fileSystemClient = fileSystem.client
-    } operation: {
-      try UpdateMetaFeature().read(metaURL: metaURL)
-    }
-    expectNoDifference(meta.int(section: "stats", key: "total-invocations"), 1)
-    expectNoDifference(meta.int(section: "stats", key: "positive"), 1)
-    expectNoDifference(meta.int(section: "stats", key: "negative"), 0)
   }
 
   @Test
@@ -168,15 +160,5 @@ struct ObserveFeatureTests {
     expectNoDifference(records[1].ts, "2025-02-06T00:02:00Z")
     expectNoDifference(records[1].signal, "negative")
     expectNoDifference(records[1].note, "Failed on multi-page PDF")
-
-    let metaURL = URL(filePath: "/Users/blob/.skillsync/skills/pdf/.meta.toml")
-    let meta = try withDependencies {
-      $0.fileSystemClient = fileSystem.client
-    } operation: {
-      try UpdateMetaFeature().read(metaURL: metaURL)
-    }
-    expectNoDifference(meta.int(section: "stats", key: "total-invocations"), 2)
-    expectNoDifference(meta.int(section: "stats", key: "positive"), 1)
-    expectNoDifference(meta.int(section: "stats", key: "negative"), 1)
   }
 }

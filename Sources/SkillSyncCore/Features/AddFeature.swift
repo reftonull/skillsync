@@ -116,11 +116,6 @@ public struct AddFeature {
     version = 1
     content-hash = "\(contentHash)"
     state = "active"
-
-    [stats]
-    total-invocations = 0
-    positive = 0
-    negative = 0
     """
   }
 

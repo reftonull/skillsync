@@ -91,21 +91,6 @@ public struct ObserveFeature {
     )
     try append(record: record, to: logURL)
 
-    var updates: [UpdateMetaFeature.FieldUpdate] = [
-      .init(section: "stats", key: "total-invocations", operation: .incrementInt(1))
-    ]
-    switch input.signal {
-    case .positive:
-      updates.append(.init(section: "stats", key: "positive", operation: .incrementInt(1)))
-    case .negative:
-      updates.append(.init(section: "stats", key: "negative", operation: .incrementInt(1)))
-    }
-
-    try UpdateMetaFeature().run(
-      metaURL: metaURL,
-      updates: updates
-    )
-
     return .init(
       name: input.name,
       signal: input.signal,

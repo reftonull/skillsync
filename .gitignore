@@ -25,3 +25,5 @@ xcuserdata/
 
 # Local reference material
 reference/
+
+.claude/settings.local.json

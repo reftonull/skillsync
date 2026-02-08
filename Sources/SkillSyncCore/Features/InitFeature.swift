@@ -37,8 +37,19 @@ public struct InitFeature {
       try fileSystemClient.write(Data(Self.defaultConfig.utf8), config)
     }
 
+    let gitignore = storeRoot.appendingPathComponent(".gitignore")
+    if !fileSystemClient.fileExists(gitignore.path) {
+      try fileSystemClient.write(Data(Self.defaultGitignore.utf8), gitignore)
+    }
+
     return Result(storeRoot: storeRoot, createdConfig: createdConfig)
   }
+
+  static let defaultGitignore = """
+    config.toml
+    rendered/
+    logs/
+    """
 
   static let defaultConfig = """
     [skillsync]
@@ -79,11 +90,6 @@ public struct InitFeature {
     version = 1
     content-hash = "\(contentHash)"
     state = "active"
-
-    [stats]
-    total-invocations = 0
-    positive = 0
-    negative = 0
     """
   }
 

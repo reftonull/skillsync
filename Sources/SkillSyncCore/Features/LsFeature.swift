@@ -61,12 +61,14 @@ public struct LsFeature {
     let metaURL = skillDirectory.appendingPathComponent(".meta.toml")
     let meta = try UpdateMetaFeature().read(metaURL: metaURL)
 
+    let counts = try LogFeature().counts(for: name)
+
     return SkillSummary(
       name: name,
       state: meta.string(section: "skill", key: "state") ?? "active",
-      totalInvocations: meta.int(section: "stats", key: "total-invocations") ?? 0,
-      positive: meta.int(section: "stats", key: "positive") ?? 0,
-      negative: meta.int(section: "stats", key: "negative") ?? 0
+      totalInvocations: counts.total,
+      positive: counts.positive,
+      negative: counts.negative
     )
   }
 }

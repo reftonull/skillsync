@@ -47,17 +47,6 @@ extension BaseSuite {
           $0.date.now = Date(timeIntervalSince1970: 1_738_800_060)
         }
       )
-
-      let meta = try withDependencies {
-        $0.fileSystemClient = fileSystem.client
-      } operation: {
-        try UpdateMetaFeature().read(
-          metaURL: URL(filePath: "/Users/blob/.skillsync/skills/pdf/.meta.toml")
-        )
-      }
-      #expect(meta.int(section: "stats", key: "total-invocations") == 1)
-      #expect(meta.int(section: "stats", key: "positive") == 1)
-      #expect(meta.int(section: "stats", key: "negative") == 0)
     }
 
     @Test

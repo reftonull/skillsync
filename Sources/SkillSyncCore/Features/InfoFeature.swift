@@ -88,9 +88,7 @@ public struct InfoFeature {
       metaURL: skillRoot.appendingPathComponent(".meta.toml")
     )
 
-    let positive = meta.int(section: "stats", key: "positive") ?? 0
-    let negative = meta.int(section: "stats", key: "negative") ?? 0
-    let total = meta.int(section: "stats", key: "total-invocations") ?? (positive + negative)
+    let counts = try LogFeature().counts(for: input.name)
 
     return .init(
       name: input.name,
@@ -100,9 +98,9 @@ public struct InfoFeature {
       contentHash: meta.string(section: "skill", key: "content-hash"),
       created: meta.string(section: "skill", key: "created"),
       source: meta.string(section: "skill", key: "source"),
-      totalInvocations: total,
-      positive: positive,
-      negative: negative
+      totalInvocations: counts.total,
+      positive: counts.positive,
+      negative: counts.negative
     )
   }
 }

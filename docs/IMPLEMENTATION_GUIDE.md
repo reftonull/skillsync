@@ -120,14 +120,10 @@ source = "hand-authored"
 version = 1
 content-hash = "sha256:..."
 state = "active"   # active | pending_remove
-
-[stats]
-total-invocations = 0
-positive = 0
-negative = 0
 ```
 
 `[[refinement]]` is optional/deferred. Version history is tracked by `version` + `content-hash`.
+Stats (invocation counts) are derived from `logs/<name>.jsonl` at read time by `info` and `ls`.
 
 ### Observation log (`logs/<skill>.jsonl`)
 
@@ -331,11 +327,10 @@ Split rationale: `skillsync-check` is cheap/read-only and surfaces status, while
 
 1. `skillsync observe <name> --signal <positive|negative> [--note]`
 - Append JSONL record.
-- Update counters in `.meta.toml`.
 
 2. `skillsync info <name>`
-- Print skill metadata from `.meta.toml`:
-  - path, version, state, content-hash, created, source, invocation totals.
+- Print skill metadata from `.meta.toml` (identity) and `logs/` (stats):
+  - path, version, state, content-hash, created, source, invocation totals (derived from logs).
 - Example:
   - `pdf`
   - `  path: /Users/blob/.skillsync/skills/pdf`

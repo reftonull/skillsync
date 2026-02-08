@@ -82,10 +82,33 @@ public struct LogFeature {
     var version: Int?
   }
 
+  public struct ObservationCounts: Equatable, Sendable {
+    public var total: Int
+    public var positive: Int
+    public var negative: Int
+
+    public init(total: Int, positive: Int, negative: Int) {
+      self.total = total
+      self.positive = positive
+      self.negative = negative
+    }
+  }
+
   @Dependency(\.pathClient) var pathClient
   @Dependency(\.fileSystemClient) var fileSystemClient
 
   public init() {}
+
+  public func counts(for skillName: String) throws -> ObservationCounts {
+    let storeRoot = pathClient.skillsyncRoot()
+    let logURL = storeRoot
+      .appendingPathComponent("logs", isDirectory: true)
+      .appendingPathComponent("\(skillName).jsonl")
+    let storedRecords = try self.loadRecords(logURL: logURL)
+    let positive = storedRecords.filter { $0.signal == .positive }.count
+    let negative = storedRecords.filter { $0.signal == .negative }.count
+    return ObservationCounts(total: storedRecords.count, positive: positive, negative: negative)
+  }
 
   public func run(_ input: Input) throws -> Result {
     let storeRoot = pathClient.skillsyncRoot()

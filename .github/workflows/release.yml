@@ -36,7 +36,7 @@ jobs:
 
       - name: Build in Swift 6.0 container
         run: |
-          docker run --rm -v "$PWD:/workspace" -w /workspace swift:6.0 \
+          docker run --rm -v "$PWD:/workspace" -w /workspace swift:6.1 \
             swift build -c release
 
       - name: Package binary
@@ -58,7 +58,7 @@ jobs:
 
       - name: Build in Swift 6.0 container
         run: |
-          docker run --rm -v "$PWD:/workspace" -w /workspace swift:6.0 \
+          docker run --rm -v "$PWD:/workspace" -w /workspace swift:6.1 \
             swift build -c release
 
       - name: Package binary

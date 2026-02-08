@@ -24,15 +24,15 @@ jobs:
         if: matrix.os == 'macos-latest'
         run: swift test
 
-      # Linux: uses Swift 6.0 Docker container
+      # Linux: uses Swift 6.1 Docker container
       - name: Build (Linux)
         if: matrix.os == 'ubuntu-latest'
         run: |
-          docker run --rm -v "$PWD:/workspace" -w /workspace swift:6.0 \
+          docker run --rm -v "$PWD:/workspace" -w /workspace swift:6.1 \
             swift build
 
       - name: Test (Linux)
         if: matrix.os == 'ubuntu-latest'
         run: |
-          docker run --rm -v "$PWD:/workspace" -w /workspace swift:6.0 \
+          docker run --rm -v "$PWD:/workspace" -w /workspace swift:6.1 \
             swift test

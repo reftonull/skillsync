@@ -79,6 +79,8 @@ Implemented today:
 skillsync init
 skillsync new <name> [--description "..."]
 skillsync add <path>
+skillsync add [--force] github <owner/repo> <skill-path> [<ref>]
+skillsync update <name>
 skillsync rm <name>
 skillsync ls
 skillsync target add --tool <name>
@@ -212,6 +214,18 @@ state = "active"   # active | pending_remove
 # [[refinement]] is optional/deferred.
 # Version history is tracked by version + content-hash.
 # Stats (invocation counts) are derived from logs/ at read time.
+```
+
+For GitHub-managed skills, `.meta.toml` also includes upstream tracking used by
+`skillsync update <name>`:
+
+```toml
+[upstream]
+repo = "owner/repo"
+skill-path = "skills/my-skill"
+ref = "main"
+commit = "abc123..."
+base-content-hash = "sha256:..."
 ```
 
 ## Config

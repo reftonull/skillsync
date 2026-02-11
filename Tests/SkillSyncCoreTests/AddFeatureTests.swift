@@ -144,4 +144,79 @@ struct AddFeatureTests {
     #expect(metaText.contains("content-hash = \"\(result.contentHash)\""))
     #expect(!metaText.contains("sha256:old"))
   }
+
+  @Test
+  func importsGitHubSkillAndWritesUpstreamMetadata() throws {
+    let fileSystem = InMemoryFileSystem(
+      homeDirectoryForCurrentUser: URL(filePath: "/Users/blob", directoryHint: .isDirectory)
+    )
+    let source = try GitHubSkillSource(
+      repo: "acme/skills",
+      skillPath: "skills/review-assistant",
+      ref: "main"
+    )
+
+    let result = try withDependencies {
+      $0.pathClient = PathClient(
+        homeDirectory: { fileSystem.homeDirectoryForCurrentUser },
+        currentDirectory: { URL(filePath: "/Users/blob/project", directoryHint: .isDirectory) }
+      )
+      $0.fileSystemClient = fileSystem.client
+      $0.githubSkillClient = GitHubSkillClient { input in
+        #expect(input == source)
+        return .init(
+          files: [
+            "SKILL.md": Data("# review-assistant\n".utf8),
+            "scripts/run.sh": Data("echo hi\n".utf8),
+          ],
+          resolvedRef: "main",
+          commit: "abc123"
+        )
+      }
+      $0.date.now = Date(timeIntervalSince1970: 1_738_800_000)
+    } operation: {
+      try AddFeature().run(.init(githubSource: source))
+    }
+
+    expectNoDifference(result.skillName, "review-assistant")
+    #expect(result.createdMeta)
+
+    let destinationRoot = URL(filePath: "/Users/blob/.skillsync/skills/review-assistant", directoryHint: .isDirectory)
+    #expect(fileSystem.client.fileExists(destinationRoot.appendingPathComponent("SKILL.md").path))
+    #expect(fileSystem.client.fileExists(destinationRoot.appendingPathComponent("scripts/run.sh").path))
+    let meta = try fileSystem.data(at: destinationRoot.appendingPathComponent(".meta.toml"))
+    let metaText = String(decoding: meta, as: UTF8.self)
+    #expect(metaText.contains("source = \"github\""))
+    #expect(metaText.contains("repo = \"acme/skills\""))
+    #expect(metaText.contains("skill-path = \"skills/review-assistant\""))
+    #expect(metaText.contains("commit = \"abc123\""))
+    #expect(metaText.contains("base-content-hash = \"\(result.contentHash)\""))
+  }
+
+  @Test
+  func rejectsGitHubPayloadWithoutSkillMarkdown() throws {
+    let fileSystem = InMemoryFileSystem()
+    let source = try GitHubSkillSource(repo: "acme/skills", skillPath: "skills/no-markdown", ref: "main")
+
+    #expect(throws: AddFeature.Error.missingSkillMarkdown("skills/no-markdown")) {
+      try withDependencies {
+        $0.pathClient = PathClient(
+          homeDirectory: { fileSystem.homeDirectoryForCurrentUser },
+          currentDirectory: { URL(filePath: "/Users/blob/project", directoryHint: .isDirectory) }
+        )
+        $0.fileSystemClient = fileSystem.client
+        $0.githubSkillClient = GitHubSkillClient { _ in
+          .init(
+            files: [
+              "notes.txt": Data("no markdown\n".utf8)
+            ],
+            resolvedRef: "main",
+            commit: "abc123"
+          )
+        }
+      } operation: {
+        try AddFeature().run(.init(githubSource: source))
+      }
+    }
+  }
 }

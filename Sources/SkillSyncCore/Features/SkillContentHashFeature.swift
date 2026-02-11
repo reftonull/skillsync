@@ -21,13 +21,26 @@ public struct SkillContentHashFeature {
         relativePath($0, base: skillDirectory) < relativePath($1, base: skillDirectory)
       }
 
-    var hasher = SHA256()
-
+    var fileMap: [String: Data] = [:]
     for file in sortedFiles {
       let relative = relativePath(file, base: skillDirectory)
-      hasher.update(data: Data(relative.utf8))
+      fileMap[relative] = try fileSystemClient.data(file)
+    }
+
+    return Self.hash(files: fileMap)
+  }
+
+  public static func hash(files: [String: Data]) -> String {
+    let sortedPaths = files.keys
+      .filter { $0 != ".meta.toml" }
+      .sorted()
+
+    var hasher = SHA256()
+    for path in sortedPaths {
+      guard let data = files[path] else { continue }
+      hasher.update(data: Data(path.utf8))
       hasher.update(data: Data([0]))
-      hasher.update(data: try fileSystemClient.data(file))
+      hasher.update(data: data)
       hasher.update(data: Data([0]))
     }
 

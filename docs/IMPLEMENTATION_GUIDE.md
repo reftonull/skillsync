@@ -220,18 +220,23 @@ Keep a separate integration layer for real symlink and lock behavior using temp 
 - Import existing folder containing `SKILL.md`.
 - Initialize `.meta.toml` if missing.
 
-3. `skillsync rm <name>`
+3. `skillsync add [--force] github <owner/repo> <skill-path> [<ref>]`
+- Import a skill directory from GitHub into canonical store.
+- Prompt for confirmation by default because remote content can be untrusted.
+- `--force` skips confirmation.
+
+4. `skillsync rm <name>`
 - Mark `skill.state = pending_remove`.
 - Physical deletion occurs during next successful prune step in `sync`.
 
-4. `skillsync ls`
+5. `skillsync ls`
 - Print skills, state, and summary stats.
 
-5. `skillsync info <name>`
+6. `skillsync info <name>`
 - Print metadata from `.meta.toml`:
   - version, state, content-hash, created, source, invocation totals.
 
-6. `skillsync export <name> <path>`
+7. `skillsync export <name> <path>`
 - Copy canonical skill to external path.
 
 ### Target management + sync

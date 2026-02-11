@@ -22,6 +22,7 @@ public struct SkillSync: AsyncParsableCommand {
       RmCommand.self,
       SyncCommand.self,
       TargetCommand.self,
+      UpdateCommand.self,
       VersionCommand.self,
     ]
   )

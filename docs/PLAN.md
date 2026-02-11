@@ -33,6 +33,8 @@ Status key:
 - `done` Implement `skillsync log <name> [--summary]` with TDD (core + CLI tests)
 - `done` Seed built-in skills during `init` from bundled templates
 - `done` Add `BuiltInSkillsClient` dependency seam so `InitFeature` can be unit-tested with injected fixtures
+- `done` Extend `skillsync add` to support GitHub sources (`skillsync add [--force] github <owner/repo> <skill-path> [<ref>]`)
+- `done` Implement `skillsync update <name>` for divergence-safe updates of GitHub-managed skills
 
 ## Milestones
 

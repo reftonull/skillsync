@@ -67,7 +67,8 @@ public struct ObserveFeature {
 
   public func run(_ input: Input) throws -> Result {
     let storeRoot = pathClient.skillsyncRoot()
-    let skillRoot = storeRoot
+    let skillRoot =
+      storeRoot
       .appendingPathComponent("skills", isDirectory: true)
       .appendingPathComponent(input.name, isDirectory: true)
     guard fileSystemClient.fileExists(skillRoot.path), fileSystemClient.isDirectory(skillRoot.path) else {

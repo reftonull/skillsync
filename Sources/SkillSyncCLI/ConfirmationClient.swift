@@ -1,12 +1,6 @@
 import Dependencies
 import Foundation
 
-#if canImport(Darwin)
-  import Darwin
-#else
-  @preconcurrency import Glibc
-#endif
-
 public struct ConfirmationClient: Sendable {
   public var confirm: @Sendable (String) -> Bool
 
@@ -19,11 +13,12 @@ private enum ConfirmationClientKey: DependencyKey {
   static var liveValue: ConfirmationClient {
     ConfirmationClient(
       confirm: { prompt in
-        Swift.print("\(prompt) ", terminator: "")
-        fflush(stdout)
-        guard let response = readLine(strippingNewline: true)?
-          .trimmingCharacters(in: .whitespacesAndNewlines)
-          .lowercased()
+        let promptData = Data("\(prompt) ".utf8)
+        FileHandle.standardOutput.write(promptData)
+        guard
+          let response = readLine(strippingNewline: true)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
         else {
           return false
         }

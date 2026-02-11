@@ -86,7 +86,8 @@ public struct UpdateFeature {
     // We intentionally check divergence before fetching so we can fail fast
     // without network calls when local edits already block an update.
     let currentHash = try SkillContentHashFeature().run(skillDirectory: skillRoot)
-    let baseHash = meta.string(section: "upstream", key: "base-content-hash")
+    let baseHash =
+      meta.string(section: "upstream", key: "base-content-hash")
       ?? meta.string(section: "skill", key: "content-hash")
       ?? ""
     guard input.force || currentHash == baseHash else {

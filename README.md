@@ -1,5 +1,19 @@
 # skillsync
 
+## Formatting
+
+Format all Swift sources in-place:
+
+```bash
+swift format format -i -r Package.swift Sources Tests
+```
+
+Check formatting in lint mode:
+
+```bash
+swift format lint -r --strict Package.swift Sources Tests
+```
+
 ## Shell Autocomplete
 
 `skillsync` uses Swift ArgumentParser's built-in completion generation, which

@@ -36,11 +36,12 @@ public struct SyncCommand: AsyncParsableCommand {
       for target in syncResult.targets {
         let status = "[\(target.status.rawValue)]"
         let resolvedPath = pathClient.resolvePath(target.target.path).path
-        let detail = if target.status == .ok {
-          "(\(target.syncedSkills) skills)"
-        } else {
-          "Error: \(target.error ?? "unknown")"
-        }
+        let detail =
+          if target.status == .ok {
+            "(\(target.syncedSkills) skills)"
+          } else {
+            "Error: \(target.error ?? "unknown")"
+          }
         rows.append([status, target.target.id, resolvedPath, detail])
       }
       for line in OutputFormatting.alignedRows(rows) {
@@ -74,16 +75,14 @@ public struct SyncCommand: AsyncParsableCommand {
       return false
     }
 
-    if
-      let status = try? gitClient.run(storeRoot, ["status", "--porcelain"]),
+    if let status = try? gitClient.run(storeRoot, ["status", "--porcelain"]),
       status.succeeded,
       !status.stdout.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     {
       return true
     }
 
-    if
-      let ahead = try? gitClient.run(storeRoot, ["rev-list", "--count", "@{u}..HEAD"]),
+    if let ahead = try? gitClient.run(storeRoot, ["rev-list", "--count", "@{u}..HEAD"]),
       ahead.succeeded,
       let commitsAhead = Int(ahead.stdout.trimmingCharacters(in: .whitespacesAndNewlines)),
       commitsAhead > 0

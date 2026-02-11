@@ -196,7 +196,8 @@ public final class InMemoryFileSystem: Sendable {
         }
       }
 
-      return children
+      return
+        children
         .sorted()
         .map { URL(filePath: $0) }
     }
@@ -244,9 +245,10 @@ public final class InMemoryFileSystem: Sendable {
         state.symbolicLinks = state.symbolicLinks.filter { key, _ in
           !(key == path || key.hasPrefix(prefix))
         }
-        state.directories = Set(state.directories.filter { key in
-          !(key == path || key.hasPrefix(prefix))
-        })
+        state.directories = Set(
+          state.directories.filter { key in
+            !(key == path || key.hasPrefix(prefix))
+          })
         return
       }
       throw Error.fileNotFound(path)

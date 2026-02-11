@@ -49,7 +49,7 @@ struct LsFeatureTests {
       try UpdateMetaFeature().run(
         metaURL: shellMetaURL,
         updates: [
-          .init(section: "skill", key: "state", operation: .setString("pending_remove")),
+          .init(section: "skill", key: "state", operation: .setString("pending_remove"))
         ]
       )
     }

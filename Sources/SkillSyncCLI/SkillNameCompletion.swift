@@ -24,7 +24,8 @@ enum SkillNameCompletion {
 
     let normalizedPrefix = prefix.lowercased()
 
-    return children
+    return
+      children
       .compactMap { child in
         guard
           let isDirectory = try? child.resourceValues(forKeys: [.isDirectoryKey]).isDirectory,

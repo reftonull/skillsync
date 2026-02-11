@@ -85,7 +85,8 @@ struct ObserveFeatureTests {
     expectNoDifference(result.ts, "2025-02-06T00:01:00Z")
 
     let logURL = URL(filePath: "/Users/blob/.skillsync/logs/pdf.jsonl")
-    let lines = try fileSystem
+    let lines =
+      try fileSystem
       .data(at: logURL)
       .split(separator: UInt8(ascii: "\n"))
       .map { String(decoding: $0, as: UTF8.self) }
@@ -147,7 +148,8 @@ struct ObserveFeatureTests {
     }
 
     let logURL = URL(filePath: "/Users/blob/.skillsync/logs/pdf.jsonl")
-    let lines = try fileSystem
+    let lines =
+      try fileSystem
       .data(at: logURL)
       .split(separator: UInt8(ascii: "\n"))
       .map { String(decoding: $0, as: UTF8.self) }

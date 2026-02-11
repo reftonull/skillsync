@@ -90,8 +90,12 @@ public struct UpdateMetaFeature {
     let sectionHeader = "[\(update.section)]"
 
     if let sectionIndex = lines.firstIndex(where: { $0.trimmingCharacters(in: .whitespaces) == sectionHeader }) {
-      let nextSectionIndex = lines[(sectionIndex + 1)...]
-        .firstIndex(where: { $0.trimmingCharacters(in: .whitespaces).hasPrefix("[") && $0.trimmingCharacters(in: .whitespaces).hasSuffix("]") })
+      let nextSectionIndex =
+        lines[(sectionIndex + 1)...]
+        .firstIndex(where: {
+          $0.trimmingCharacters(in: .whitespaces).hasPrefix("[")
+            && $0.trimmingCharacters(in: .whitespaces).hasSuffix("]")
+        })
         ?? lines.endIndex
 
       if let keyLineIndex = lines[(sectionIndex + 1)..<nextSectionIndex]

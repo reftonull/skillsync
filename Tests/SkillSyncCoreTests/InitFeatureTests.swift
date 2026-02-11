@@ -11,13 +11,13 @@ struct InitFeatureTests {
     BuiltInSkill(
       name: "skillsync-new",
       files: [
-        "SKILL.md": Data("# skillsync-new\n".utf8),
+        "SKILL.md": Data("# skillsync-new\n".utf8)
       ]
     ),
     BuiltInSkill(
       name: "skillsync-check",
       files: [
-        "SKILL.md": Data("# skillsync-check\n".utf8),
+        "SKILL.md": Data("# skillsync-check\n".utf8)
       ]
     ),
     BuiltInSkill(

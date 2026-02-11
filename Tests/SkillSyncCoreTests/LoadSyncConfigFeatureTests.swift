@@ -127,16 +127,16 @@ struct LoadSyncConfigFeatureTests {
   func parseTargetsStripsCommentsAndSupportsSingleQuotes() {
     let parsed = LoadSyncConfigFeature.parseTargets(
       from: """
-      [[targets]]
-      id = 'codex'
-      path = '/tmp/codex#skills' # inline comment should be ignored
-      source = "tool"
+        [[targets]]
+        id = 'codex'
+        path = '/tmp/codex#skills' # inline comment should be ignored
+        source = "tool"
 
-      [[targets]]
-      id = "cursor"
-      path = "~/cursor-skills" # trailing comment
-      source = "path"
-      """
+        [[targets]]
+        id = "cursor"
+        path = "~/cursor-skills" # trailing comment
+        source = "path"
+        """
     )
 
     expectNoDifference(

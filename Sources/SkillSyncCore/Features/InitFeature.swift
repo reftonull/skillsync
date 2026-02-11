@@ -91,7 +91,8 @@ public struct InitFeature {
     }
 
     let existing = String(decoding: try fileSystemClient.data(gitignoreURL), as: UTF8.self)
-    let existingLines = existing
+    let existingLines =
+      existing
       .split(separator: "\n", omittingEmptySubsequences: false)
       .map { String($0) }
 

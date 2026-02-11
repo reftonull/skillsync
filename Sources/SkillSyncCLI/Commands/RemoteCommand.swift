@@ -5,7 +5,7 @@ public struct RemoteCommand: AsyncParsableCommand {
     commandName: "remote",
     abstract: "Manage git remotes for the skillsync store.",
     subcommands: [
-      RemoteSetCommand.self,
+      RemoteSetCommand.self
     ]
   )
 

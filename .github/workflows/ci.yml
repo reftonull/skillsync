@@ -8,6 +8,7 @@ on:
       - "Tests/**"
       - "Package.swift"
       - "Package.resolved"
+      - ".swift-format"
   pull_request:
     branches: [main]
     paths:
@@ -15,6 +16,7 @@ on:
       - "Tests/**"
       - "Package.swift"
       - "Package.resolved"
+      - ".swift-format"
 
 jobs:
   build:
@@ -24,6 +26,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Swift Format Lint (macOS)
+        if: matrix.os == 'macos-latest'
+        run: swift format lint -r --parallel --strict Package.swift Sources Tests
 
       # macOS: uses Xcode's Swift toolchain
       - name: Build (macOS)

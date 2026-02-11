@@ -1,7 +1,7 @@
 #if canImport(CryptoKit)
-import CryptoKit
+  import CryptoKit
 #else
-import Crypto
+  import Crypto
 #endif
 import Dependencies
 import Foundation
@@ -15,7 +15,8 @@ public struct SkillContentHashFeature {
     var files: [URL] = []
     try collectFiles(in: skillDirectory, into: &files)
 
-    let sortedFiles = files
+    let sortedFiles =
+      files
       .filter { $0.lastPathComponent != ".meta.toml" }
       .sorted {
         relativePath($0, base: skillDirectory) < relativePath($1, base: skillDirectory)

@@ -101,7 +101,8 @@ public struct LogFeature {
 
   public func counts(for skillName: String) throws -> ObservationCounts {
     let storeRoot = pathClient.skillsyncRoot()
-    let logURL = storeRoot
+    let logURL =
+      storeRoot
       .appendingPathComponent("logs", isDirectory: true)
       .appendingPathComponent("\(skillName).jsonl")
     let storedRecords = try self.loadRecords(logURL: logURL)
@@ -112,14 +113,16 @@ public struct LogFeature {
 
   public func run(_ input: Input) throws -> Result {
     let storeRoot = pathClient.skillsyncRoot()
-    let skillRoot = storeRoot
+    let skillRoot =
+      storeRoot
       .appendingPathComponent("skills", isDirectory: true)
       .appendingPathComponent(input.name, isDirectory: true)
     guard fileSystemClient.fileExists(skillRoot.path), fileSystemClient.isDirectory(skillRoot.path) else {
       throw Error.skillNotFound(input.name)
     }
 
-    let logURL = storeRoot
+    let logURL =
+      storeRoot
       .appendingPathComponent("logs", isDirectory: true)
       .appendingPathComponent("\(input.name).jsonl")
 
@@ -157,7 +160,8 @@ public struct LogFeature {
     }
 
     let raw = String(decoding: try fileSystemClient.data(logURL), as: UTF8.self)
-    let lines = raw
+    let lines =
+      raw
       .split(separator: "\n", omittingEmptySubsequences: true)
       .map(String.init)
 

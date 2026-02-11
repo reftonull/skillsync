@@ -26,11 +26,12 @@ public struct PullCommand: AsyncParsableCommand {
     for target in syncResult.targets {
       let status = "[\(target.status.rawValue)]"
       let resolvedPath = pathClient.resolvePath(target.target.path).path
-      let detail = if target.status == .ok {
-        "(\(target.syncedSkills) skills)"
-      } else {
-        "Error: \(target.error ?? "unknown")"
-      }
+      let detail =
+        if target.status == .ok {
+          "(\(target.syncedSkills) skills)"
+        } else {
+          "Error: \(target.error ?? "unknown")"
+        }
       rows.append([status, target.target.id, resolvedPath, detail])
     }
     for line in OutputFormatting.alignedRows(rows) {

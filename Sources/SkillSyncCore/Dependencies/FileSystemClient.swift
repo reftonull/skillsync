@@ -72,7 +72,8 @@ public struct FileSystemClient: Sendable {
       if destination.hasPrefix("/") {
         return URL(filePath: destination)
       }
-      return link
+      return
+        link
         .deletingLastPathComponent()
         .appendingPathComponent(destination)
         .standardizedFileURL

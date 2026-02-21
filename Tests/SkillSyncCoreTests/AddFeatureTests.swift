@@ -219,4 +219,110 @@ struct AddFeatureTests {
       }
     }
   }
+
+  @Test
+  func rejectsSourcePathThatIsNotADirectory() throws {
+    let fileSystem = InMemoryFileSystem()
+    try fileSystem.write(
+      Data("not a directory\n".utf8),
+      to: URL(filePath: "/Users/blob/project/my-skill")
+    )
+
+    #expect(throws: AddFeature.Error.sourcePathNotDirectory("/Users/blob/project/my-skill")) {
+      try withDependencies {
+        $0.pathClient = PathClient(
+          homeDirectory: { fileSystem.homeDirectoryForCurrentUser },
+          currentDirectory: { URL(filePath: "/Users/blob/project", directoryHint: .isDirectory) }
+        )
+        $0.fileSystemClient = fileSystem.client
+      } operation: {
+        try AddFeature().run(.init(sourcePath: "my-skill"))
+      }
+    }
+  }
+
+  @Test
+  func rejectsSourcePathThatDoesNotExist() {
+    let fileSystem = InMemoryFileSystem()
+
+    #expect(throws: AddFeature.Error.sourcePathNotFound("/Users/blob/project/nonexistent")) {
+      try withDependencies {
+        $0.pathClient = PathClient(
+          homeDirectory: { fileSystem.homeDirectoryForCurrentUser },
+          currentDirectory: { URL(filePath: "/Users/blob/project", directoryHint: .isDirectory) }
+        )
+        $0.fileSystemClient = fileSystem.client
+      } operation: {
+        try AddFeature().run(.init(sourcePath: "nonexistent"))
+      }
+    }
+  }
+
+  @Test
+  func rejectsGitHubPayloadWithPathTraversalFileName() throws {
+    let fileSystem = InMemoryFileSystem(
+      homeDirectoryForCurrentUser: URL(filePath: "/Users/blob", directoryHint: .isDirectory)
+    )
+    let source = try GitHubSkillSource(repo: "acme/skills", skillPath: "skills/review-assistant", ref: "main")
+
+    #expect(throws: AddFeature.Error.invalidGitHubSkillPath("../traversal")) {
+      try withDependencies {
+        $0.pathClient = PathClient(
+          homeDirectory: { fileSystem.homeDirectoryForCurrentUser },
+          currentDirectory: { URL(filePath: "/Users/blob/project", directoryHint: .isDirectory) }
+        )
+        $0.fileSystemClient = fileSystem.client
+        $0.date.now = Date(timeIntervalSince1970: 1_738_800_000)
+        $0.githubSkillClient = GitHubSkillClient { _ in
+          .init(
+            files: [
+              "SKILL.md": Data("# skill\n".utf8),
+              "../traversal": Data("bad\n".utf8),
+            ],
+            resolvedRef: "main",
+            commit: "abc123"
+          )
+        }
+      } operation: {
+        try AddFeature().run(.init(githubSource: source))
+      }
+    }
+  }
+
+  @Test
+  func escapesSpecialCharactersInUpstreamMetaTOML() throws {
+    let fileSystem = InMemoryFileSystem(
+      homeDirectoryForCurrentUser: URL(filePath: "/Users/blob", directoryHint: .isDirectory)
+    )
+    let source = try GitHubSkillSource(
+      repo: "acme/skills",
+      skillPath: "skills/review-assistant",
+      ref: "main"
+    )
+
+    _ = try withDependencies {
+      $0.pathClient = PathClient(
+        homeDirectory: { fileSystem.homeDirectoryForCurrentUser },
+        currentDirectory: { URL(filePath: "/Users/blob/project", directoryHint: .isDirectory) }
+      )
+      $0.fileSystemClient = fileSystem.client
+      $0.githubSkillClient = GitHubSkillClient { _ in
+        .init(
+          files: ["SKILL.md": Data("# skill\n".utf8)],
+          resolvedRef: "main",
+          commit: #"abc\"123"#
+        )
+      }
+      $0.date.now = Date(timeIntervalSince1970: 1_738_800_000)
+    } operation: {
+      try AddFeature().run(.init(githubSource: source))
+    }
+
+    let meta = try fileSystem.data(
+      at: URL(filePath: "/Users/blob/.skillsync/skills/review-assistant/.meta.toml")
+    )
+    let metaText = String(decoding: meta, as: UTF8.self)
+    // The backslash and quote must be escaped so the TOML remains valid
+    #expect(metaText.contains(#"commit = "abc\\\"123""#))
+  }
 }

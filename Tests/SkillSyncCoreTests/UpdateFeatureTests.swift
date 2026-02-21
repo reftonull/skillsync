@@ -244,6 +244,157 @@ struct UpdateFeatureTests {
     }
   }
 
+  @Test
+  func throwsWhenSkillNotFound() {
+    let fileSystem = InMemoryFileSystem()
+
+    #expect(throws: UpdateFeature.Error.skillNotFound("nonexistent")) {
+      try withDependencies {
+        $0.pathClient = PathClient(
+          homeDirectory: { fileSystem.homeDirectoryForCurrentUser },
+          currentDirectory: { URL(filePath: "/Users/blob/project", directoryHint: .isDirectory) }
+        )
+        $0.fileSystemClient = fileSystem.client
+        $0.githubSkillClient = GitHubSkillClient { _ in
+          .init(files: [:], resolvedRef: "main", commit: "abc")
+        }
+      } operation: {
+        try UpdateFeature().run(.init(name: "nonexistent"))
+      }
+    }
+  }
+
+  @Test
+  func throwsWhenUpstreamMetadataIncomplete() throws {
+    let fileSystem = InMemoryFileSystem()
+    let skillRoot = URL(filePath: "/Users/blob/.skillsync/skills/review-assistant", directoryHint: .isDirectory)
+    try fileSystem.createDirectory(at: skillRoot, withIntermediateDirectories: true)
+    try fileSystem.write(Data("# skill\n".utf8), to: skillRoot.appendingPathComponent("SKILL.md"))
+    // source = "github" but no [upstream] section
+    try fileSystem.write(
+      Data(
+        """
+        [skill]
+        source = "github"
+        version = 1
+        state = "active"
+        """.utf8
+      ),
+      to: skillRoot.appendingPathComponent(".meta.toml")
+    )
+
+    #expect(throws: UpdateFeature.Error.missingUpstreamMetadata("review-assistant")) {
+      try withDependencies {
+        $0.pathClient = PathClient(
+          homeDirectory: { fileSystem.homeDirectoryForCurrentUser },
+          currentDirectory: { URL(filePath: "/Users/blob/project", directoryHint: .isDirectory) }
+        )
+        $0.fileSystemClient = fileSystem.client
+        $0.githubSkillClient = GitHubSkillClient { _ in
+          .init(files: ["SKILL.md": Data("# new\n".utf8)], resolvedRef: "main", commit: "abc")
+        }
+      } operation: {
+        try UpdateFeature().run(.init(name: "review-assistant"))
+      }
+    }
+  }
+
+  @Test
+  func throwsWhenFetchedPayloadLacksSkillMarkdown() throws {
+    let fileSystem = InMemoryFileSystem()
+    let skillRoot = URL(filePath: "/Users/blob/.skillsync/skills/review-assistant", directoryHint: .isDirectory)
+    try fileSystem.createDirectory(at: skillRoot, withIntermediateDirectories: true)
+    try fileSystem.write(Data("# skill\n".utf8), to: skillRoot.appendingPathComponent("SKILL.md"))
+
+    let hash = try hashSkill(skillRoot: skillRoot, fileSystem: fileSystem)
+    try fileSystem.write(
+      Data(
+        """
+        [skill]
+        source = "github"
+        version = 1
+        content-hash = "\(hash)"
+        state = "active"
+
+        [upstream]
+        repo = "acme/skills"
+        skill-path = "skills/review-assistant"
+        ref = "main"
+        commit = "abc"
+        base-content-hash = "\(hash)"
+        """.utf8
+      ),
+      to: skillRoot.appendingPathComponent(".meta.toml")
+    )
+
+    #expect(throws: UpdateFeature.Error.missingSkillMarkdown("skills/review-assistant")) {
+      try withDependencies {
+        $0.pathClient = PathClient(
+          homeDirectory: { fileSystem.homeDirectoryForCurrentUser },
+          currentDirectory: { URL(filePath: "/Users/blob/project", directoryHint: .isDirectory) }
+        )
+        $0.fileSystemClient = fileSystem.client
+        $0.githubSkillClient = GitHubSkillClient { _ in
+          // Payload contains no SKILL.md
+          .init(files: ["notes.txt": Data("oops\n".utf8)], resolvedRef: "main", commit: "abc2")
+        }
+      } operation: {
+        try UpdateFeature().run(.init(name: "review-assistant"))
+      }
+    }
+  }
+
+  @Test
+  func throwsWhenFetchedPayloadContainsInvalidFilePath() throws {
+    let fileSystem = InMemoryFileSystem()
+    let skillRoot = URL(filePath: "/Users/blob/.skillsync/skills/review-assistant", directoryHint: .isDirectory)
+    try fileSystem.createDirectory(at: skillRoot, withIntermediateDirectories: true)
+    try fileSystem.write(Data("# skill\n".utf8), to: skillRoot.appendingPathComponent("SKILL.md"))
+
+    let hash = try hashSkill(skillRoot: skillRoot, fileSystem: fileSystem)
+    try fileSystem.write(
+      Data(
+        """
+        [skill]
+        source = "github"
+        version = 1
+        content-hash = "\(hash)"
+        state = "active"
+
+        [upstream]
+        repo = "acme/skills"
+        skill-path = "skills/review-assistant"
+        ref = "main"
+        commit = "abc"
+        base-content-hash = "\(hash)"
+        """.utf8
+      ),
+      to: skillRoot.appendingPathComponent(".meta.toml")
+    )
+
+    #expect(throws: UpdateFeature.Error.invalidGitHubSkillPath("../etc/passwd")) {
+      try withDependencies {
+        $0.pathClient = PathClient(
+          homeDirectory: { fileSystem.homeDirectoryForCurrentUser },
+          currentDirectory: { URL(filePath: "/Users/blob/project", directoryHint: .isDirectory) }
+        )
+        $0.fileSystemClient = fileSystem.client
+        $0.githubSkillClient = GitHubSkillClient { _ in
+          .init(
+            files: [
+              "SKILL.md": Data("# updated\n".utf8),
+              "../etc/passwd": Data("root:x\n".utf8),
+            ],
+            resolvedRef: "main",
+            commit: "abc2"
+          )
+        }
+      } operation: {
+        try UpdateFeature().run(.init(name: "review-assistant"))
+      }
+    }
+  }
+
   private func hashSkill(skillRoot: URL, fileSystem: InMemoryFileSystem) throws -> String {
     try withDependencies {
       $0.pathClient = PathClient(

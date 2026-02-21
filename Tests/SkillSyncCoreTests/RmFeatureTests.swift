@@ -63,4 +63,32 @@ struct RmFeatureTests {
       }
     }
   }
+
+  @Test
+  func throwsWhenMetaTomlIsMissing() throws {
+    let fileSystem = InMemoryFileSystem(
+      homeDirectoryForCurrentUser: URL(filePath: "/Users/blob", directoryHint: .isDirectory)
+    )
+    // Create the skill directory without a .meta.toml file
+    try fileSystem.createDirectory(
+      at: URL(filePath: "/Users/blob/.skillsync/skills/pdf", directoryHint: .isDirectory),
+      withIntermediateDirectories: true
+    )
+    try fileSystem.write(
+      Data("# PDF skill\n".utf8),
+      to: URL(filePath: "/Users/blob/.skillsync/skills/pdf/SKILL.md")
+    )
+
+    #expect(throws: RmFeature.Error.metaNotFound("pdf")) {
+      try withDependencies {
+        $0.pathClient = PathClient(
+          homeDirectory: { fileSystem.homeDirectoryForCurrentUser },
+          currentDirectory: { URL(filePath: "/Users/blob/project", directoryHint: .isDirectory) }
+        )
+        $0.fileSystemClient = fileSystem.client
+      } operation: {
+        try RmFeature().run(.init(name: "pdf"))
+      }
+    }
+  }
 }

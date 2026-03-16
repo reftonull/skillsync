@@ -58,17 +58,14 @@ public struct AddCommand: AsyncParsableCommand {
 
     let result = try AddFeature().run(input)
 
-    let imported = result.skills.filter {
-      if case .imported = $0.status { return true }
-      return false
-    }
-    let skipped = result.skills.filter {
-      if case .imported = $0.status { return false }
-      return true
-    }
+    let imported = result.skills.filter(\.status.isImported)
+    let skipped = result.skills.filter { !$0.status.isImported }
 
-    if result.skills.count == 1, let skill = imported.first {
-      outputClient.stdout("Imported skill \(skill.skillName) to \(skill.skillRoot!.path)")
+    // Single-skill import: match the original output format
+    if result.skills.count == 1, let skill = imported.first,
+      case let .imported(skillRoot, _, _) = skill.status
+    {
+      outputClient.stdout("Imported skill \(skill.skillName) to \(skillRoot.path)")
     } else {
       for skill in result.skills {
         switch skill.status {

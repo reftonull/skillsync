@@ -256,6 +256,52 @@ extension BaseSuite {
     }
 
     @Test
+    func batchImportShowsSkippedExistsStatus() async throws {
+      let fileSystem = InMemoryFileSystem(
+        homeDirectoryForCurrentUser: URL(filePath: "/Users/blob", directoryHint: .isDirectory)
+      )
+
+      let parent = "/Users/blob/project/all-skills"
+      for name in ["alpha", "beta"] {
+        try fileSystem.createDirectory(
+          at: URL(filePath: "\(parent)/\(name)", directoryHint: .isDirectory),
+          withIntermediateDirectories: true
+        )
+        try fileSystem.write(
+          Data("# \(name)\n".utf8),
+          to: URL(filePath: "\(parent)/\(name)/SKILL.md")
+        )
+      }
+
+      // Pre-create beta in canonical store
+      try fileSystem.createDirectory(
+        at: URL(filePath: "/Users/blob/.skillsync/skills/beta", directoryHint: .isDirectory),
+        withIntermediateDirectories: true
+      )
+
+      try await assertCommand(
+        ["add", "all-skills"],
+        stdout: {
+          """
+          Imported alpha
+          Skipped beta (already exists)
+
+          Imported 1 skills, skipped 1.
+          Run `skillsync sync` to apply changes to configured targets.
+          """
+        },
+        dependencies: {
+          $0.pathClient = PathClient(
+            homeDirectory: { fileSystem.homeDirectoryForCurrentUser },
+            currentDirectory: { URL(filePath: "/Users/blob/project", directoryHint: .isDirectory) }
+          )
+          $0.fileSystemClient = fileSystem.client
+          $0.date.now = Date(timeIntervalSince1970: 1_738_800_000)
+        }
+      )
+    }
+
+    @Test
     func forceIsRejectedForLocalPathMode() async {
       let fileSystem = InMemoryFileSystem(
         homeDirectoryForCurrentUser: URL(filePath: "/Users/blob", directoryHint: .isDirectory)

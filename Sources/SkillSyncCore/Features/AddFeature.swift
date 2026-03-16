@@ -34,27 +34,27 @@ public struct AddFeature {
   public struct SkillResult: Equatable, Sendable {
     public var status: Status
     public var skillName: String
-    public var skillRoot: URL?
-    public var contentHash: String?
 
-    public init(status: Status, skillName: String, skillRoot: URL? = nil, contentHash: String? = nil) {
+    public init(status: Status, skillName: String) {
       self.status = status
       self.skillName = skillName
-      self.skillRoot = skillRoot
-      self.contentHash = contentHash
     }
   }
 
   public enum Status: Equatable, Sendable {
-    case imported(createdMeta: Bool)
+    case imported(skillRoot: URL, contentHash: String, createdMeta: Bool)
     case skippedExists
     case skippedInvalid(reason: String)
+
+    public var isImported: Bool {
+      if case .imported = self { return true }
+      return false
+    }
   }
 
   public enum Error: Swift.Error, Equatable, CustomStringConvertible {
     case sourcePathNotFound(String)
     case sourcePathNotDirectory(String)
-    case missingSkillMarkdown(String)
     case skillAlreadyExists(String)
     case invalidGitHubSkillPath(String)
     case noSkillsFound(String)
@@ -65,8 +65,6 @@ public struct AddFeature {
         return "Source path not found: \(path)"
       case let .sourcePathNotDirectory(path):
         return "Source path is not a directory: \(path)"
-      case let .missingSkillMarkdown(path):
-        return "Skill directory '\(path)' must contain SKILL.md."
       case let .skillAlreadyExists(name):
         return "Skill '\(name)' already exists."
       case let .invalidGitHubSkillPath(path):
@@ -140,10 +138,8 @@ public struct AddFeature {
 
     return Result(skills: [
       SkillResult(
-        status: .imported(createdMeta: createdMeta),
-        skillName: skillName,
-        skillRoot: skillRoot,
-        contentHash: contentHash
+        status: .imported(skillRoot: skillRoot, contentHash: contentHash, createdMeta: createdMeta),
+        skillName: skillName
       )
     ])
   }
@@ -159,11 +155,7 @@ public struct AddFeature {
       guard fileSystemClient.fileExists(childSkillMd.path),
         !fileSystemClient.isDirectory(childSkillMd.path)
       else {
-        skills.append(
-          SkillResult(
-            status: .skippedInvalid(reason: "no SKILL.md"),
-            skillName: child.lastPathComponent
-          ))
+        skills.append(SkillResult(status: .skippedInvalid(reason: "no SKILL.md"), skillName: child.lastPathComponent))
         continue
       }
 
@@ -172,13 +164,19 @@ public struct AddFeature {
         skills.append(contentsOf: singleResult.skills)
       } catch Error.skillAlreadyExists {
         skills.append(SkillResult(status: .skippedExists, skillName: child.lastPathComponent))
+      } catch {
+        skills.append(
+          SkillResult(
+            status: .skippedInvalid(reason: String(describing: error)),
+            skillName: child.lastPathComponent
+          ))
       }
     }
 
+    // A batch succeeds if at least one child was imported or recognized as existing.
+    // All-skippedInvalid means the parent had no valid skills at all.
     guard
-      skills.contains(where: {
-        if case .imported = $0.status { return true }; return false
-      })
+      skills.contains(where: \.status.isImported)
         || skills.contains(where: { $0.status == .skippedExists })
     else {
       throw Error.noSkillsFound(sourceRoot.path)
@@ -230,10 +228,8 @@ public struct AddFeature {
 
     return Result(skills: [
       SkillResult(
-        status: .imported(createdMeta: true),
-        skillName: skillName,
-        skillRoot: skillRoot,
-        contentHash: contentHash
+        status: .imported(skillRoot: skillRoot, contentHash: contentHash, createdMeta: true),
+        skillName: skillName
       )
     ])
   }
@@ -256,11 +252,7 @@ public struct AddFeature {
     for childName in groups.keys.sorted() {
       let childFiles = groups[childName]!
       guard childFiles["SKILL.md"] != nil else {
-        skills.append(
-          SkillResult(
-            status: .skippedInvalid(reason: "no SKILL.md"),
-            skillName: childName
-          ))
+        skills.append(SkillResult(status: .skippedInvalid(reason: "no SKILL.md"), skillName: childName))
         continue
       }
 
@@ -280,13 +272,17 @@ public struct AddFeature {
         skills.append(contentsOf: singleResult.skills)
       } catch Error.skillAlreadyExists {
         skills.append(SkillResult(status: .skippedExists, skillName: childName))
+      } catch {
+        skills.append(
+          SkillResult(
+            status: .skippedInvalid(reason: String(describing: error)),
+            skillName: childName
+          ))
       }
     }
 
     guard
-      skills.contains(where: {
-        if case .imported = $0.status { return true }; return false
-      })
+      skills.contains(where: \.status.isImported)
         || skills.contains(where: { $0.status == .skippedExists })
     else {
       throw Error.noSkillsFound(source.skillPath)

@@ -57,7 +57,33 @@ public struct AddCommand: AsyncParsableCommand {
     }
 
     let result = try AddFeature().run(input)
-    outputClient.stdout("Imported skill \(result.skillName) to \(result.skillRoot.path)")
+
+    let imported = result.skills.filter {
+      if case .imported = $0.status { return true }
+      return false
+    }
+    let skipped = result.skills.filter {
+      if case .imported = $0.status { return false }
+      return true
+    }
+
+    if result.skills.count == 1, let skill = imported.first {
+      outputClient.stdout("Imported skill \(skill.skillName) to \(skill.skillRoot!.path)")
+    } else {
+      for skill in result.skills {
+        switch skill.status {
+        case .imported:
+          outputClient.stdout("Imported \(skill.skillName)")
+        case .skippedExists:
+          outputClient.stdout("Skipped \(skill.skillName) (already exists)")
+        case let .skippedInvalid(reason):
+          outputClient.stdout("Skipped \(skill.skillName) (\(reason))")
+        }
+      }
+      outputClient.stdout("")
+      outputClient.stdout("Imported \(imported.count) skills, skipped \(skipped.count).")
+    }
+
     outputClient.stdout("Run `skillsync sync` to apply changes to configured targets.")
   }
 }

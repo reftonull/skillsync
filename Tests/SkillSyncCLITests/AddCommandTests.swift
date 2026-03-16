@@ -43,7 +43,7 @@ extension BaseSuite {
     }
 
     @Test
-    func missingSkillMarkdownThrowsActionableError() async {
+    func emptyDirectoryThrowsActionableError() async {
       let fileSystem = InMemoryFileSystem(
         homeDirectoryForCurrentUser: URL(filePath: "/Users/blob", directoryHint: .isDirectory)
       )
@@ -56,7 +56,7 @@ extension BaseSuite {
         ["add", "no-skill"],
         error: {
           """
-          Skill directory '/Users/blob/project/no-skill' must contain SKILL.md.
+          No skill directories found in '/Users/blob/project/no-skill'.
           """
         },
         dependencies: {
@@ -210,6 +210,92 @@ extension BaseSuite {
               commit: "abc123"
             )
           }
+          $0.date.now = Date(timeIntervalSince1970: 1_738_800_000)
+        }
+      )
+    }
+
+    @Test
+    func batchImportShowsPerSkillStatusAndSummary() async throws {
+      let fileSystem = InMemoryFileSystem(
+        homeDirectoryForCurrentUser: URL(filePath: "/Users/blob", directoryHint: .isDirectory)
+      )
+
+      // Parent with alpha (valid), beta (valid), gamma (no SKILL.md)
+      let parent = "/Users/blob/project/all-skills"
+      for name in ["alpha", "beta", "gamma"] {
+        try fileSystem.createDirectory(
+          at: URL(filePath: "\(parent)/\(name)", directoryHint: .isDirectory),
+          withIntermediateDirectories: true
+        )
+      }
+      try fileSystem.write(Data("# Alpha\n".utf8), to: URL(filePath: "\(parent)/alpha/SKILL.md"))
+      try fileSystem.write(Data("# Beta\n".utf8), to: URL(filePath: "\(parent)/beta/SKILL.md"))
+
+      try await assertCommand(
+        ["add", "all-skills"],
+        stdout: {
+          """
+          Imported alpha
+          Imported beta
+          Skipped gamma (no SKILL.md)
+
+          Imported 2 skills, skipped 1.
+          Run `skillsync sync` to apply changes to configured targets.
+          """
+        },
+        dependencies: {
+          $0.pathClient = PathClient(
+            homeDirectory: { fileSystem.homeDirectoryForCurrentUser },
+            currentDirectory: { URL(filePath: "/Users/blob/project", directoryHint: .isDirectory) }
+          )
+          $0.fileSystemClient = fileSystem.client
+          $0.date.now = Date(timeIntervalSince1970: 1_738_800_000)
+        }
+      )
+    }
+
+    @Test
+    func batchImportShowsSkippedExistsStatus() async throws {
+      let fileSystem = InMemoryFileSystem(
+        homeDirectoryForCurrentUser: URL(filePath: "/Users/blob", directoryHint: .isDirectory)
+      )
+
+      let parent = "/Users/blob/project/all-skills"
+      for name in ["alpha", "beta"] {
+        try fileSystem.createDirectory(
+          at: URL(filePath: "\(parent)/\(name)", directoryHint: .isDirectory),
+          withIntermediateDirectories: true
+        )
+        try fileSystem.write(
+          Data("# \(name)\n".utf8),
+          to: URL(filePath: "\(parent)/\(name)/SKILL.md")
+        )
+      }
+
+      // Pre-create beta in canonical store
+      try fileSystem.createDirectory(
+        at: URL(filePath: "/Users/blob/.skillsync/skills/beta", directoryHint: .isDirectory),
+        withIntermediateDirectories: true
+      )
+
+      try await assertCommand(
+        ["add", "all-skills"],
+        stdout: {
+          """
+          Imported alpha
+          Skipped beta (already exists)
+
+          Imported 1 skills, skipped 1.
+          Run `skillsync sync` to apply changes to configured targets.
+          """
+        },
+        dependencies: {
+          $0.pathClient = PathClient(
+            homeDirectory: { fileSystem.homeDirectoryForCurrentUser },
+            currentDirectory: { URL(filePath: "/Users/blob/project", directoryHint: .isDirectory) }
+          )
+          $0.fileSystemClient = fileSystem.client
           $0.date.now = Date(timeIntervalSince1970: 1_738_800_000)
         }
       )

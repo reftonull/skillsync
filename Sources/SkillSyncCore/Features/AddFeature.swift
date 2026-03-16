@@ -24,30 +24,40 @@ public struct AddFeature {
   }
 
   public struct Result: Equatable, Sendable {
-    public var skillName: String
-    public var skillRoot: URL
-    public var createdMeta: Bool
-    public var contentHash: String
+    public var skills: [SkillResult]
 
-    public init(
-      skillName: String,
-      skillRoot: URL,
-      createdMeta: Bool,
-      contentHash: String
-    ) {
+    public init(skills: [SkillResult]) {
+      self.skills = skills
+    }
+  }
+
+  public struct SkillResult: Equatable, Sendable {
+    public var status: Status
+    public var skillName: String
+
+    public init(status: Status, skillName: String) {
+      self.status = status
       self.skillName = skillName
-      self.skillRoot = skillRoot
-      self.createdMeta = createdMeta
-      self.contentHash = contentHash
+    }
+  }
+
+  public enum Status: Equatable, Sendable {
+    case imported(skillRoot: URL, contentHash: String, createdMeta: Bool)
+    case skippedExists
+    case skippedInvalid(reason: String)
+
+    public var isImported: Bool {
+      if case .imported = self { return true }
+      return false
     }
   }
 
   public enum Error: Swift.Error, Equatable, CustomStringConvertible {
     case sourcePathNotFound(String)
     case sourcePathNotDirectory(String)
-    case missingSkillMarkdown(String)
     case skillAlreadyExists(String)
     case invalidGitHubSkillPath(String)
+    case noSkillsFound(String)
 
     public var description: String {
       switch self {
@@ -55,12 +65,12 @@ public struct AddFeature {
         return "Source path not found: \(path)"
       case let .sourcePathNotDirectory(path):
         return "Source path is not a directory: \(path)"
-      case let .missingSkillMarkdown(path):
-        return "Skill directory '\(path)' must contain SKILL.md."
       case let .skillAlreadyExists(name):
         return "Skill '\(name)' already exists."
       case let .invalidGitHubSkillPath(path):
         return "Invalid file path in GitHub skill payload: \(path)"
+      case let .noSkillsFound(path):
+        return "No skill directories found in '\(path)'."
       }
     }
   }
@@ -89,11 +99,16 @@ public struct AddFeature {
     guard fileSystemClient.isDirectory(sourceRoot.path) else {
       throw Error.sourcePathNotDirectory(sourceRoot.path)
     }
+
     let skillMarkdown = sourceRoot.appendingPathComponent("SKILL.md")
-    guard fileSystemClient.fileExists(skillMarkdown.path), !fileSystemClient.isDirectory(skillMarkdown.path) else {
-      throw Error.missingSkillMarkdown(sourceRoot.path)
+    if fileSystemClient.fileExists(skillMarkdown.path), !fileSystemClient.isDirectory(skillMarkdown.path) {
+      return try runLocalSingleImport(sourceRoot: sourceRoot)
     }
 
+    return try runLocalBatchImport(sourceRoot: sourceRoot)
+  }
+
+  private func runLocalSingleImport(sourceRoot: URL) throws -> Result {
     let skillName = sourceRoot.lastPathComponent
     let skillRoot = try self.destinationRoot(for: skillName)
 
@@ -121,20 +136,69 @@ public struct AddFeature {
       try fileSystemClient.write(Data(meta.utf8), metaURL)
     }
 
-    return Result(
-      skillName: skillName,
-      skillRoot: skillRoot,
-      createdMeta: createdMeta,
-      contentHash: contentHash
-    )
+    return Result(skills: [
+      SkillResult(
+        status: .imported(skillRoot: skillRoot, contentHash: contentHash, createdMeta: createdMeta),
+        skillName: skillName
+      )
+    ])
+  }
+
+  private func runLocalBatchImport(sourceRoot: URL) throws -> Result {
+    let children = try fileSystemClient.contentsOfDirectory(sourceRoot)
+      .filter { fileSystemClient.isDirectory($0.path) }
+      .sorted { $0.lastPathComponent < $1.lastPathComponent }
+
+    var skills: [SkillResult] = []
+    for child in children {
+      let childSkillMd = child.appendingPathComponent("SKILL.md")
+      guard fileSystemClient.fileExists(childSkillMd.path),
+        !fileSystemClient.isDirectory(childSkillMd.path)
+      else {
+        skills.append(SkillResult(status: .skippedInvalid(reason: "no SKILL.md"), skillName: child.lastPathComponent))
+        continue
+      }
+
+      do {
+        let singleResult = try runLocalSingleImport(sourceRoot: child)
+        skills.append(contentsOf: singleResult.skills)
+      } catch Error.skillAlreadyExists {
+        skills.append(SkillResult(status: .skippedExists, skillName: child.lastPathComponent))
+      } catch {
+        skills.append(
+          SkillResult(
+            status: .skippedInvalid(reason: String(describing: error)),
+            skillName: child.lastPathComponent
+          ))
+      }
+    }
+
+    // A batch succeeds if at least one child was imported or recognized as existing.
+    // All-skippedInvalid means the parent had no valid skills at all.
+    guard
+      skills.contains(where: \.status.isImported)
+        || skills.contains(where: { $0.status == .skippedExists })
+    else {
+      throw Error.noSkillsFound(sourceRoot.path)
+    }
+
+    return Result(skills: skills)
   }
 
   private func runGitHubImport(source: GitHubSkillSource) throws -> Result {
     let fetched = try githubSkillClient.fetch(source)
-    guard fetched.files["SKILL.md"] != nil else {
-      throw Error.missingSkillMarkdown(source.skillPath)
+
+    if fetched.files["SKILL.md"] != nil {
+      return try runGitHubSingleImport(source: source, fetched: fetched)
     }
 
+    return try runGitHubBatchImport(source: source, fetched: fetched)
+  }
+
+  private func runGitHubSingleImport(
+    source: GitHubSkillSource,
+    fetched: GitHubSkillClient.FetchResult
+  ) throws -> Result {
     let skillName = URL(filePath: source.skillPath, directoryHint: .isDirectory).lastPathComponent
     let skillRoot = try self.destinationRoot(for: skillName)
     try fileSystemClient.createDirectory(skillRoot, true)
@@ -143,9 +207,7 @@ public struct AddFeature {
       guard let sanitized = SkillRelativePath.sanitize(key) else {
         throw Error.invalidGitHubSkillPath(key)
       }
-      if sanitized == ".meta.toml" {
-        continue
-      }
+      if sanitized == ".meta.toml" { continue }
       guard let data = fetched.files[key] else { continue }
       let destination = skillRoot.appendingPathComponent(sanitized)
       try fileSystemClient.createDirectory(destination.deletingLastPathComponent(), true)
@@ -164,12 +226,69 @@ public struct AddFeature {
     )
     try fileSystemClient.write(Data(meta.utf8), skillRoot.appendingPathComponent(".meta.toml"))
 
-    return Result(
-      skillName: skillName,
-      skillRoot: skillRoot,
-      createdMeta: true,
-      contentHash: contentHash
-    )
+    return Result(skills: [
+      SkillResult(
+        status: .imported(skillRoot: skillRoot, contentHash: contentHash, createdMeta: true),
+        skillName: skillName
+      )
+    ])
+  }
+
+  private func runGitHubBatchImport(
+    source: GitHubSkillSource,
+    fetched: GitHubSkillClient.FetchResult
+  ) throws -> Result {
+    // Group files by first path component (child directory name)
+    var groups: [String: [String: Data]] = [:]
+    for (path, data) in fetched.files {
+      let components = path.split(separator: "/", maxSplits: 1)
+      guard components.count == 2 else { continue }
+      let childName = String(components[0])
+      let childRelativePath = String(components[1])
+      groups[childName, default: [:]][childRelativePath] = data
+    }
+
+    var skills: [SkillResult] = []
+    for childName in groups.keys.sorted() {
+      let childFiles = groups[childName]!
+      guard childFiles["SKILL.md"] != nil else {
+        skills.append(SkillResult(status: .skippedInvalid(reason: "no SKILL.md"), skillName: childName))
+        continue
+      }
+
+      let childSkillPath =
+        source.skillPath.hasSuffix("/")
+        ? "\(source.skillPath)\(childName)"
+        : "\(source.skillPath)/\(childName)"
+
+      do {
+        let childSource = try GitHubSkillSource(repo: source.repo, skillPath: childSkillPath, ref: source.ref)
+        let childFetched = GitHubSkillClient.FetchResult(
+          files: childFiles,
+          resolvedRef: fetched.resolvedRef,
+          commit: fetched.commit
+        )
+        let singleResult = try runGitHubSingleImport(source: childSource, fetched: childFetched)
+        skills.append(contentsOf: singleResult.skills)
+      } catch Error.skillAlreadyExists {
+        skills.append(SkillResult(status: .skippedExists, skillName: childName))
+      } catch {
+        skills.append(
+          SkillResult(
+            status: .skippedInvalid(reason: String(describing: error)),
+            skillName: childName
+          ))
+      }
+    }
+
+    guard
+      skills.contains(where: \.status.isImported)
+        || skills.contains(where: { $0.status == .skippedExists })
+    else {
+      throw Error.noSkillsFound(source.skillPath)
+    }
+
+    return Result(skills: skills)
   }
 
   private func destinationRoot(for skillName: String) throws -> URL {

@@ -2,105 +2,105 @@ import Dependencies
 import Foundation
 
 public struct InfoFeature {
-  public struct Input: Equatable, Sendable {
-    public var name: String
+    public struct Input: Equatable, Sendable {
+        public var name: String
 
-    public init(name: String) {
-      self.name = name
-    }
-  }
-
-  public struct Result: Equatable, Sendable, Encodable {
-    public var name: String
-    public var path: String
-    public var version: Int
-    public var state: String
-    public var contentHash: String?
-    public var created: String?
-    public var source: String?
-    public var totalInvocations: Int
-    public var positive: Int
-    public var negative: Int
-
-    public init(
-      name: String,
-      path: String,
-      version: Int,
-      state: String,
-      contentHash: String?,
-      created: String?,
-      source: String?,
-      totalInvocations: Int,
-      positive: Int,
-      negative: Int
-    ) {
-      self.name = name
-      self.path = path
-      self.version = version
-      self.state = state
-      self.contentHash = contentHash
-      self.created = created
-      self.source = source
-      self.totalInvocations = totalInvocations
-      self.positive = positive
-      self.negative = negative
+        public init(name: String) {
+            self.name = name
+        }
     }
 
-    public func formattedOutput() -> String {
-      """
-      \(name)
-        path: \(path)
-        version: \(version)
-        state: \(state)
-        content-hash: \(contentHash ?? "unknown")
-        created: \(created ?? "unknown")
-        source: \(source ?? "unknown")
-        invocations: \(totalInvocations) (positive: \(positive), negative: \(negative))
-      """
+    public struct Result: Equatable, Sendable, Encodable {
+        public var name: String
+        public var path: String
+        public var version: Int
+        public var state: String
+        public var contentHash: String?
+        public var created: String?
+        public var source: String?
+        public var totalInvocations: Int
+        public var positive: Int
+        public var negative: Int
+
+        public init(
+            name: String,
+            path: String,
+            version: Int,
+            state: String,
+            contentHash: String?,
+            created: String?,
+            source: String?,
+            totalInvocations: Int,
+            positive: Int,
+            negative: Int
+        ) {
+            self.name = name
+            self.path = path
+            self.version = version
+            self.state = state
+            self.contentHash = contentHash
+            self.created = created
+            self.source = source
+            self.totalInvocations = totalInvocations
+            self.positive = positive
+            self.negative = negative
+        }
+
+        public func formattedOutput() -> String {
+            """
+            \(name)
+              path: \(path)
+              version: \(version)
+              state: \(state)
+              content-hash: \(contentHash ?? "unknown")
+              created: \(created ?? "unknown")
+              source: \(source ?? "unknown")
+              invocations: \(totalInvocations) (positive: \(positive), negative: \(negative))
+            """
+        }
     }
-  }
 
-  public enum Error: Swift.Error, Equatable, CustomStringConvertible {
-    case skillNotFound(String)
+    public enum Error: Swift.Error, Equatable, CustomStringConvertible {
+        case skillNotFound(String)
 
-    public var description: String {
-      switch self {
-      case let .skillNotFound(name):
-        return "Skill '\(name)' not found."
-      }
-    }
-  }
-
-  @Dependency(\.pathClient) var pathClient
-  @Dependency(\.fileSystemClient) var fileSystemClient
-
-  public init() {}
-
-  public func run(_ input: Input) throws -> Result {
-    let skillRoot = pathClient.skillsyncRoot()
-      .appendingPathComponent("skills", isDirectory: true)
-      .appendingPathComponent(input.name, isDirectory: true)
-    guard fileSystemClient.fileExists(skillRoot.path), fileSystemClient.isDirectory(skillRoot.path) else {
-      throw Error.skillNotFound(input.name)
+        public var description: String {
+            switch self {
+            case let .skillNotFound(name):
+                return "Skill '\(name)' not found."
+            }
+        }
     }
 
-    let meta = try UpdateMetaFeature().read(
-      metaURL: skillRoot.appendingPathComponent(".meta.toml")
-    )
+    @Dependency(\.pathClient) var pathClient
+    @Dependency(\.fileSystemClient) var fileSystemClient
 
-    let counts = try LogFeature().counts(for: input.name)
+    public init() {}
 
-    return .init(
-      name: input.name,
-      path: skillRoot.path,
-      version: meta.skill.version ?? 0,
-      state: meta.skill.state ?? "active",
-      contentHash: meta.skill.contentHash,
-      created: meta.skill.created,
-      source: meta.skill.source,
-      totalInvocations: counts.total,
-      positive: counts.positive,
-      negative: counts.negative
-    )
-  }
+    public func run(_ input: Input) throws -> Result {
+        let skillRoot = pathClient.skillsyncRoot()
+            .appendingPathComponent("skills", isDirectory: true)
+            .appendingPathComponent(input.name, isDirectory: true)
+        guard fileSystemClient.fileExists(skillRoot.path), fileSystemClient.isDirectory(skillRoot.path) else {
+            throw Error.skillNotFound(input.name)
+        }
+
+        let meta = try UpdateMetaFeature().read(
+            metaURL: skillRoot.appendingPathComponent(".meta.toml")
+        )
+
+        let counts = try LogFeature().counts(for: input.name)
+
+        return .init(
+            name: input.name,
+            path: skillRoot.path,
+            version: meta.skill.version ?? 0,
+            state: meta.skill.state ?? "active",
+            contentHash: meta.skill.contentHash,
+            created: meta.skill.created,
+            source: meta.skill.source,
+            totalInvocations: counts.total,
+            positive: counts.positive,
+            negative: counts.negative
+        )
+    }
 }

@@ -1,41 +1,86 @@
 import Dependencies
 import Foundation
+import TOMLDecoder
 
 public struct UpdateMetaFeature {
   public struct MetaDocument: Equatable, Sendable {
-    var fields: [String: [String: String]]
+    public var skill: SkillSection
+    public var upstream: UpstreamSection
 
-    public init(fields: [String: [String: String]] = [:]) {
-      self.fields = fields
+    public init(
+      skill: SkillSection = .init(),
+      upstream: UpstreamSection = .init()
+    ) {
+      self.skill = skill
+      self.upstream = upstream
     }
 
-    public func rawValue(section: String, key: String) -> String? {
-      fields[section]?[key]
-    }
+    public struct SkillSection: Equatable, Sendable, Decodable {
+      public var created: String?
+      public var source: String?
+      public var version: Int?
+      public var contentHash: String?
+      public var state: String?
 
-    public func string(section: String, key: String) -> String? {
-      guard let raw = rawValue(section: section, key: key) else { return nil }
-      guard raw.count >= 2 else { return nil }
-      if raw.hasPrefix("\""), raw.hasSuffix("\"") {
-        return String(raw.dropFirst().dropLast())
+      public init(
+        created: String? = nil,
+        source: String? = nil,
+        version: Int? = nil,
+        contentHash: String? = nil,
+        state: String? = nil
+      ) {
+        self.created = created
+        self.source = source
+        self.version = version
+        self.contentHash = contentHash
+        self.state = state
       }
-      if raw.hasPrefix("'"), raw.hasSuffix("'") {
-        return String(raw.dropFirst().dropLast())
-      }
-      return nil
-    }
 
-    public func int(section: String, key: String) -> Int? {
-      rawValue(section: section, key: key).flatMap(Int.init)
-    }
-
-    public func bool(section: String, key: String) -> Bool? {
-      switch rawValue(section: section, key: key) {
-      case "true": return true
-      case "false": return false
-      default: return nil
+      private enum CodingKeys: String, CodingKey {
+        case created
+        case source
+        case version
+        case contentHash = "content-hash"
+        case state
       }
     }
+
+    public struct UpstreamSection: Equatable, Sendable, Decodable {
+      public var repo: String?
+      public var skillPath: String?
+      public var ref: String?
+      public var commit: String?
+      public var baseContentHash: String?
+
+      public init(
+        repo: String? = nil,
+        skillPath: String? = nil,
+        ref: String? = nil,
+        commit: String? = nil,
+        baseContentHash: String? = nil
+      ) {
+        self.repo = repo
+        self.skillPath = skillPath
+        self.ref = ref
+        self.commit = commit
+        self.baseContentHash = baseContentHash
+      }
+
+      private enum CodingKeys: String, CodingKey {
+        case repo
+        case skillPath = "skill-path"
+        case ref
+        case commit
+        case baseContentHash = "base-content-hash"
+      }
+    }
+  }
+
+  // MARK: - Decodable wrapper for TOMLDecoder
+
+  private struct MetaFile: Decodable {
+    var skill: MetaDocument.SkillSection?
+    var upstream: MetaDocument.UpstreamSection?
   }
 
   public struct FieldUpdate: Equatable, Sendable {
@@ -68,7 +113,13 @@ public struct UpdateMetaFeature {
     guard let content = String(data: try fileSystemClient.data(metaURL), encoding: .utf8) else {
       return MetaDocument()
     }
-    return Self.parse(content: content)
+    guard let decoded = try? TOMLDecoder().decode(MetaFile.self, from: content) else {
+      return MetaDocument()
+    }
+    return MetaDocument(
+      skill: decoded.skill ?? .init(),
+      upstream: decoded.upstream ?? .init()
+    )
   }
 
   public func run(metaURL: URL, updates: [FieldUpdate]) throws {
@@ -139,58 +190,5 @@ public struct UpdateMetaFeature {
     let raw = line[line.index(after: equals)...]
       .trimmingCharacters(in: .whitespacesAndNewlines)
     return Int(raw)
-  }
-
-  private static func parse(content: String) -> MetaDocument {
-    var fields: [String: [String: String]] = [:]
-    var currentSection = ""
-
-    for rawLine in content.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline) {
-      let line = stripComments(String(rawLine)).trimmingCharacters(in: .whitespacesAndNewlines)
-      guard !line.isEmpty else { continue }
-
-      if line.hasPrefix("[") && line.hasSuffix("]") {
-        currentSection = String(line.dropFirst().dropLast()).trimmingCharacters(in: .whitespacesAndNewlines)
-        continue
-      }
-
-      guard !currentSection.isEmpty else { continue }
-      guard let equals = line.firstIndex(of: "=") else { continue }
-      let key = String(line[..<equals]).trimmingCharacters(in: .whitespacesAndNewlines)
-      let value = String(line[line.index(after: equals)...]).trimmingCharacters(in: .whitespacesAndNewlines)
-      guard !key.isEmpty else { continue }
-
-      var section = fields[currentSection, default: [:]]
-      section[key] = value
-      fields[currentSection] = section
-    }
-
-    return MetaDocument(fields: fields)
-  }
-
-  private static func stripComments(_ line: String) -> String {
-    var inString = false
-    var delimiter: Character?
-    var output = ""
-
-    for character in line {
-      if inString {
-        output.append(character)
-        if character == delimiter {
-          inString = false
-          delimiter = nil
-        }
-      } else if character == "\"" || character == "'" {
-        inString = true
-        delimiter = character
-        output.append(character)
-      } else if character == "#" {
-        break
-      } else {
-        output.append(character)
-      }
-    }
-
-    return output
   }
 }

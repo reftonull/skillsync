@@ -1,5 +1,5 @@
 {
-  "originHash" : "6b8b2a38a6caada118d7329a4cc8deadf4cb1bf429950fe1b26eb0b36b4f94aa",
+  "originHash" : "68ba8f19d86320abb21fd84de2bb90ae67c14cf8fa01de6d7727ac546c6f4c57",
   "pins" : [
     {
       "identity" : "combine-schedulers",
@@ -89,6 +89,15 @@
       "state" : {
         "revision" : "4799286537280063c85a32f09884cfbca301b1a1",
         "version" : "602.0.0"
+      }
+    },
+    {
+      "identity" : "tomldecoder",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/dduan/TOMLDecoder",
+      "state" : {
+        "revision" : "f4388e05c035d6430e94022c353123abc020f1c4",
+        "version" : "0.4.3"
       }
     },
     {

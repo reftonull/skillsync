@@ -276,8 +276,8 @@ struct SyncRenderFeatureTests {
     } operation: {
       try UpdateMetaFeature().read(metaURL: metaURL)
     }
-    let versionBefore = metaBefore.int(section: "skill", key: "version")
-    let hashBefore = metaBefore.string(section: "skill", key: "content-hash")
+    let versionBefore = metaBefore.skill.version
+    let hashBefore = metaBefore.skill.contentHash
 
     // Modify the skill content directly
     let skillMD = URL(filePath: "/Users/blob/.skillsync/skills/pdf/SKILL.md")
@@ -309,8 +309,8 @@ struct SyncRenderFeatureTests {
     } operation: {
       try UpdateMetaFeature().read(metaURL: metaURL)
     }
-    let versionAfter = metaAfter.int(section: "skill", key: "version")
-    let hashAfter = metaAfter.string(section: "skill", key: "content-hash")
+    let versionAfter = metaAfter.skill.version
+    let hashAfter = metaAfter.skill.contentHash
 
     #expect(versionAfter == (versionBefore ?? 0) + 1)
     #expect(hashAfter != hashBefore)
@@ -361,8 +361,8 @@ struct SyncRenderFeatureTests {
     } operation: {
       try UpdateMetaFeature().read(metaURL: metaURL)
     }
-    let versionAfterFirst = metaAfterFirst.int(section: "skill", key: "version")
-    let hashAfterFirst = metaAfterFirst.string(section: "skill", key: "content-hash")
+    let versionAfterFirst = metaAfterFirst.skill.version
+    let hashAfterFirst = metaAfterFirst.skill.contentHash
 
     // Second sync with no changes
     _ = try withDependencies {
@@ -380,8 +380,8 @@ struct SyncRenderFeatureTests {
     } operation: {
       try UpdateMetaFeature().read(metaURL: metaURL)
     }
-    let versionAfterSecond = metaAfterSecond.int(section: "skill", key: "version")
-    let hashAfterSecond = metaAfterSecond.string(section: "skill", key: "content-hash")
+    let versionAfterSecond = metaAfterSecond.skill.version
+    let hashAfterSecond = metaAfterSecond.skill.contentHash
 
     expectNoDifference(versionAfterSecond, versionAfterFirst)
     expectNoDifference(hashAfterSecond, hashAfterFirst)
@@ -435,12 +435,12 @@ struct SyncRenderFeatureTests {
     let alphaVersionBefore = try withDependencies {
       $0.fileSystemClient = fileSystem.client
     } operation: {
-      try UpdateMetaFeature().read(metaURL: alphaMetaURL).int(section: "skill", key: "version")
+      try UpdateMetaFeature().read(metaURL: alphaMetaURL).skill.version
     }
     let betaVersionBefore = try withDependencies {
       $0.fileSystemClient = fileSystem.client
     } operation: {
-      try UpdateMetaFeature().read(metaURL: betaMetaURL).int(section: "skill", key: "version")
+      try UpdateMetaFeature().read(metaURL: betaMetaURL).skill.version
     }
 
     // Only modify alpha
@@ -461,12 +461,12 @@ struct SyncRenderFeatureTests {
     let alphaVersionAfter = try withDependencies {
       $0.fileSystemClient = fileSystem.client
     } operation: {
-      try UpdateMetaFeature().read(metaURL: alphaMetaURL).int(section: "skill", key: "version")
+      try UpdateMetaFeature().read(metaURL: alphaMetaURL).skill.version
     }
     let betaVersionAfter = try withDependencies {
       $0.fileSystemClient = fileSystem.client
     } operation: {
-      try UpdateMetaFeature().read(metaURL: betaMetaURL).int(section: "skill", key: "version")
+      try UpdateMetaFeature().read(metaURL: betaMetaURL).skill.version
     }
 
     // Alpha should have bumped

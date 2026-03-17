@@ -245,7 +245,7 @@ public struct SyncRenderFeature {
     let currentHash = try SkillContentHashFeature().run(skillDirectory: skill.root)
     let metaURL = skill.root.appendingPathComponent(".meta.toml")
     let document = try UpdateMetaFeature().read(metaURL: metaURL)
-    let storedHash = document.string(section: "skill", key: "content-hash") ?? ""
+    let storedHash = document.skill.contentHash ?? ""
     guard currentHash != storedHash else { return }
     try UpdateMetaFeature().run(
       metaURL: metaURL,
@@ -278,7 +278,7 @@ public struct SyncRenderFeature {
   private func skillState(for skillDirectory: URL) throws -> String {
     let metaPath = skillDirectory.appendingPathComponent(".meta.toml")
     let document = try UpdateMetaFeature().read(metaURL: metaPath)
-    return document.string(section: "skill", key: "state") ?? "active"
+    return document.skill.state ?? "active"
   }
 
   private static func removingObservationFooter(from text: String) -> String {

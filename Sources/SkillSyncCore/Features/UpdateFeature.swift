@@ -69,14 +69,14 @@ public struct UpdateFeature {
     let metaURL = skillRoot.appendingPathComponent(".meta.toml")
     let meta = try UpdateMetaFeature().read(metaURL: metaURL)
 
-    guard meta.string(section: "skill", key: "source") == "github" else {
+    guard meta.skill.source == "github" else {
       throw Error.notGitHubManaged(input.name)
     }
 
     guard
-      let repo = meta.string(section: "upstream", key: "repo"),
-      let skillPath = meta.string(section: "upstream", key: "skill-path"),
-      let ref = meta.string(section: "upstream", key: "ref")
+      let repo = meta.upstream.repo,
+      let skillPath = meta.upstream.skillPath,
+      let ref = meta.upstream.ref
     else {
       throw Error.missingUpstreamMetadata(input.name)
     }
@@ -87,8 +87,8 @@ public struct UpdateFeature {
     // without network calls when local edits already block an update.
     let currentHash = try SkillContentHashFeature().run(skillDirectory: skillRoot)
     let baseHash =
-      meta.string(section: "upstream", key: "base-content-hash")
-      ?? meta.string(section: "skill", key: "content-hash")
+      meta.upstream.baseContentHash
+      ?? meta.skill.contentHash
       ?? ""
     guard input.force || currentHash == baseHash else {
       throw Error.localSkillDiverged(input.name)

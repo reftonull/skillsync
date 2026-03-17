@@ -77,7 +77,7 @@ public struct ObserveFeature {
 
     let metaURL = skillRoot.appendingPathComponent(".meta.toml")
     let meta = try UpdateMetaFeature().read(metaURL: metaURL)
-    let version = meta.int(section: "skill", key: "version") ?? 0
+    let version = meta.skill.version ?? 0
     let timestamp = Self.formatDate(now)
 
     let logsRoot = storeRoot.appendingPathComponent("logs", isDirectory: true)

@@ -19,6 +19,7 @@ let package = Package(
     .package(url: "https://github.com/pointfreeco/swift-dependencies", from: "1.0.0"),
     .package(url: "https://github.com/pointfreeco/swift-snapshot-testing", from: "1.18.9"),
     .package(url: "https://github.com/apple/swift-crypto", from: "3.0.0"),
+    .package(url: "https://github.com/dduan/TOMLDecoder", from: "0.4.3"),
   ],
   targets: [
     .executableTarget(
@@ -47,6 +48,7 @@ let package = Package(
         .product(name: "Dependencies", package: "swift-dependencies"),
         .product(name: "CustomDump", package: "swift-custom-dump"),
         .product(name: "Crypto", package: "swift-crypto", condition: .when(platforms: [.linux])),
+        .product(name: "TOMLDecoder", package: "TOMLDecoder"),
       ],
       swiftSettings: [
         .enableUpcomingFeature("NonisolatedNonsendingByDefault")

@@ -1,5 +1,6 @@
 import Dependencies
 import Foundation
+import TOMLDecoder
 
 public struct LoadSyncConfigFeature {
   public struct Result: Equatable, Sendable {
@@ -38,124 +39,53 @@ public struct LoadSyncConfigFeature {
     )
   }
 
+  // MARK: - TOML Decodable types
+
+  private struct ConfigFile: Decodable {
+    var targets: [TargetEntry]?
+    var observation: ObservationSection?
+
+    struct TargetEntry: Decodable {
+      var id: String?
+      var path: String?
+      var source: String?
+    }
+
+    struct ObservationSection: Decodable {
+      var mode: String?
+    }
+  }
+
+  // MARK: - Parsing via TOMLDecoder
+
   static func parseTargets(from contents: String) -> [SyncTarget] {
-    var targets: [SyncTarget] = []
-    var current: [String: String] = [:]
-    var inTargetsArray = false
+    guard let config = try? TOMLDecoder().decode(ConfigFile.self, from: contents) else {
+      return []
+    }
 
-    func flushCurrentTarget() {
-      guard !current.isEmpty else { return }
-      defer { current = [:] }
+    return (config.targets ?? []).compactMap { entry in
       guard
-        let idRaw = current["id"],
-        let pathRaw = current["path"],
-        let sourceRaw = current["source"],
-        let id = parseStringLiteral(idRaw),
-        let path = parseStringLiteral(pathRaw),
-        let sourceString = parseStringLiteral(sourceRaw),
-        let source = SyncTarget.Source(rawValue: sourceString)
+        let id = entry.id,
+        let path = entry.path,
+        let sourceRaw = entry.source,
+        let source = SyncTarget.Source(rawValue: sourceRaw)
       else {
-        return
+        return nil
       }
-      targets.append(.init(id: id, path: path, source: source))
+      return SyncTarget(id: id, path: path, source: source)
     }
-
-    for rawLine in contents.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline) {
-      let line = Self.stripComments(String(rawLine)).trimmingCharacters(in: .whitespacesAndNewlines)
-      guard !line.isEmpty else { continue }
-
-      if line.hasPrefix("[[") && line.hasSuffix("]]") {
-        let section = String(line.dropFirst(2).dropLast(2)).trimmingCharacters(in: .whitespacesAndNewlines)
-        if section == "targets" {
-          flushCurrentTarget()
-          inTargetsArray = true
-          continue
-        }
-        flushCurrentTarget()
-        inTargetsArray = false
-        continue
-      }
-
-      if line.hasPrefix("[") && line.hasSuffix("]") {
-        flushCurrentTarget()
-        inTargetsArray = false
-        continue
-      }
-
-      guard inTargetsArray else { continue }
-      guard let equals = line.firstIndex(of: "=") else { continue }
-      let key = String(line[..<equals]).trimmingCharacters(in: .whitespacesAndNewlines)
-      let value = String(line[line.index(after: equals)...]).trimmingCharacters(in: .whitespacesAndNewlines)
-      guard !key.isEmpty else { continue }
-      current[key] = value
-    }
-
-    flushCurrentTarget()
-    return targets
   }
 
   static func parseObservationSettings(from contents: String) -> ObservationSettings {
-    var mode = ObservationSettings.default.mode
-    var inObservationSection = false
-
-    for rawLine in contents.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline) {
-      let line = Self.stripComments(String(rawLine)).trimmingCharacters(in: .whitespacesAndNewlines)
-      guard !line.isEmpty else { continue }
-
-      if line.hasPrefix("[") && line.hasSuffix("]") {
-        let section = String(line.dropFirst().dropLast()).trimmingCharacters(in: .whitespacesAndNewlines)
-        inObservationSection = section == "observation"
-        continue
-      }
-
-      guard inObservationSection else { continue }
-      guard let equalsIndex = line.firstIndex(of: "=") else { continue }
-
-      let key = String(line[..<equalsIndex]).trimmingCharacters(in: .whitespacesAndNewlines)
-      let rawValue = String(line[line.index(after: equalsIndex)...]).trimmingCharacters(in: .whitespacesAndNewlines)
-
-      switch key {
-      case "mode":
-        if let rawMode = Self.parseStringLiteral(rawValue), let parsedMode = ObservationMode(rawValue: rawMode) {
-          mode = parsedMode
-        }
-      default:
-        continue
-      }
+    guard let config = try? TOMLDecoder().decode(ConfigFile.self, from: contents) else {
+      return .default
     }
+
+    let mode =
+      config.observation?.mode
+      .flatMap(ObservationMode.init(rawValue:))
+      ?? ObservationSettings.default.mode
 
     return ObservationSettings(mode: mode)
-  }
-
-  private static func stripComments(_ line: String) -> String {
-    var inString = false
-    var delimiter: Character?
-    var output = ""
-
-    for character in line {
-      if inString {
-        output.append(character)
-        if character == delimiter {
-          inString = false
-          delimiter = nil
-        }
-      } else if character == "\"" || character == "'" {
-        inString = true
-        delimiter = character
-        output.append(character)
-      } else if character == "#" {
-        break
-      } else {
-        output.append(character)
-      }
-    }
-
-    return output
-  }
-
-  static func parseStringLiteral(_ rawValue: String) -> String? {
-    guard let first = rawValue.first, let last = rawValue.last else { return nil }
-    guard (first == "\"" && last == "\"") || (first == "'" && last == "'") else { return nil }
-    return String(rawValue.dropFirst().dropLast())
   }
 }

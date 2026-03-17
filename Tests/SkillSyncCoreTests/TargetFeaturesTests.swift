@@ -5,6 +5,32 @@ import Testing
 
 @testable import SkillSyncCore
 
+private let testRegistry: [AgentRegistryEntry] = [
+  .init(
+    id: "claude-code", displayName: "Claude Code",
+    globalSkillsPath: "~/.claude/skills", projectDirectory: ".claude",
+    defaultLinkMode: "symlink"
+  ),
+  .init(
+    id: "codex", displayName: "Codex CLI",
+    globalSkillsPath: "~/.codex/skills", projectDirectory: ".codex",
+    defaultLinkMode: "symlink"
+  ),
+  .init(
+    id: "cursor", displayName: "Cursor",
+    globalSkillsPath: "~/.cursor/skills", projectDirectory: ".cursor",
+    defaultLinkMode: "hardlink"
+  ),
+]
+
+private let testRegistryClient = AgentRegistryClient(
+  entryFor: { id in testRegistry.first { $0.id == id } },
+  allEntries: { testRegistry },
+  projectDirectories: {
+    Dictionary(uniqueKeysWithValues: testRegistry.map { ($0.id, $0.projectDirectory) })
+  }
+)
+
 @Suite
 struct TargetFeaturesTests {
   @Test
@@ -19,6 +45,7 @@ struct TargetFeaturesTests {
         currentDirectory: { URL(filePath: "/Users/blob/project", directoryHint: .isDirectory) }
       )
       $0.fileSystemClient = fileSystem.client
+      $0.agentRegistryClient = testRegistryClient
     } operation: {
       try TargetAddFeature().run(.init(mode: .tool("codex")))
     }
@@ -43,13 +70,14 @@ struct TargetFeaturesTests {
   func addToolThrowsForUnknownTool() {
     let fileSystem = InMemoryFileSystem()
 
-    #expect(throws: TargetAddFeature.Error.unknownTool("unknown")) {
+    #expect(throws: TargetAddFeature.Error.unknownTool("unknown", available: testRegistry)) {
       try withDependencies {
         $0.pathClient = PathClient(
           homeDirectory: { fileSystem.homeDirectoryForCurrentUser },
           currentDirectory: { URL(filePath: "/Users/blob/project", directoryHint: .isDirectory) }
         )
         $0.fileSystemClient = fileSystem.client
+        $0.agentRegistryClient = testRegistryClient
       } operation: {
         try TargetAddFeature().run(.init(mode: .tool("unknown")))
       }
@@ -65,6 +93,7 @@ struct TargetFeaturesTests {
         currentDirectory: { URL(filePath: "/Users/blob/project", directoryHint: .isDirectory) }
       )
       $0.fileSystemClient = fileSystem.client
+      $0.agentRegistryClient = testRegistryClient
     } operation: {
       try TargetAddFeature().run(.init(mode: .path("/tmp/custom")))
     }
@@ -76,6 +105,7 @@ struct TargetFeaturesTests {
           currentDirectory: { URL(filePath: "/Users/blob/project", directoryHint: .isDirectory) }
         )
         $0.fileSystemClient = fileSystem.client
+        $0.agentRegistryClient = testRegistryClient
       } operation: {
         try TargetAddFeature().run(.init(mode: .path("/tmp/custom/./")))
       }
@@ -119,6 +149,7 @@ struct TargetFeaturesTests {
         currentDirectory: { URL(filePath: "/Users/blob/work/app/Features", directoryHint: .isDirectory) }
       )
       $0.fileSystemClient = fileSystem.client
+      $0.agentRegistryClient = testRegistryClient
     } operation: {
       try TargetAddFeature().run(.init(mode: .project))
     }

@@ -70,7 +70,7 @@ public struct SyncRenderFeature {
   public init() {}
 
   public func run(_ input: Input) throws -> Result {
-    let skills = try self.loadSkills()
+    let skills = try loadSkills()
     let activeSkills = skills.filter { $0.state != "pending_remove" }
     let pendingRemoveSkills = Set(skills.filter { $0.state == "pending_remove" }.map(\.name))
     let renderedRoot = pathClient.skillsyncRoot().appendingPathComponent("rendered", isDirectory: true)
@@ -83,7 +83,7 @@ public struct SyncRenderFeature {
     var targetResults: [TargetResult] = []
     for target in input.targets {
       do {
-        let synced = try self.syncTarget(
+        let synced = try syncTarget(
           target,
           activeSkills: activeSkills,
           pendingRemoveSkills: pendingRemoveSkills,
@@ -106,7 +106,7 @@ public struct SyncRenderFeature {
     }
 
     if targetResults.allSatisfy({ $0.status == .ok }) {
-      try self.prunePendingFromCanonicalStore(pendingRemoveSkills)
+      try prunePendingFromCanonicalStore(pendingRemoveSkills)
     }
 
     return Result(targets: targetResults)
@@ -135,12 +135,12 @@ public struct SyncRenderFeature {
         to: renderedSkillRoot,
         excluding: [".meta.toml"]
       )
-      try self.injectObservationFooterIfNeeded(
+      try injectObservationFooterIfNeeded(
         skillName: skill.name,
         renderedSkillRoot: renderedSkillRoot,
         observation: observation
       )
-      try self.installManagedLink(
+      try installManagedLink(
         skillName: skill.name,
         destination: targetPath,
         renderedSkillRoot: renderedSkillRoot,
@@ -157,7 +157,7 @@ public struct SyncRenderFeature {
     }
 
     let activeNames = Set(activeSkills.map(\.name))
-    try self.pruneDestinationLinks(
+    try pruneDestinationLinks(
       destination: targetPath,
       activeSkillNames: activeNames,
       renderedRoot: renderedRoot
@@ -245,7 +245,7 @@ public struct SyncRenderFeature {
     let currentHash = try SkillContentHashFeature().run(skillDirectory: skill.root)
     let metaURL = skill.root.appendingPathComponent(".meta.toml")
     let document = try UpdateMetaFeature().read(metaURL: metaURL)
-    let storedHash = document.string(section: "skill", key: "content-hash") ?? ""
+    let storedHash = document.skill.contentHash ?? ""
     guard currentHash != storedHash else { return }
     try UpdateMetaFeature().run(
       metaURL: metaURL,
@@ -267,10 +267,10 @@ public struct SyncRenderFeature {
       .sorted { $0.lastPathComponent < $1.lastPathComponent }
 
     return try skillDirectories.map { directory in
-      SkillRecord(
+      try SkillRecord(
         name: directory.lastPathComponent,
         root: directory,
-        state: try self.skillState(for: directory)
+        state: self.skillState(for: directory)
       )
     }
   }
@@ -278,7 +278,7 @@ public struct SyncRenderFeature {
   private func skillState(for skillDirectory: URL) throws -> String {
     let metaPath = skillDirectory.appendingPathComponent(".meta.toml")
     let document = try UpdateMetaFeature().read(metaURL: metaPath)
-    return document.string(section: "skill", key: "state") ?? "active"
+    return document.skill.state ?? "active"
   }
 
   private static func removingObservationFooter(from text: String) -> String {

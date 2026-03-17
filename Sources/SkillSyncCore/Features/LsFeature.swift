@@ -65,7 +65,7 @@ public struct LsFeature {
 
     return SkillSummary(
       name: name,
-      state: meta.string(section: "skill", key: "state") ?? "active",
+      state: meta.skill.state ?? "active",
       totalInvocations: counts.total,
       positive: counts.positive,
       negative: counts.negative

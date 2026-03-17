@@ -50,7 +50,7 @@ A contributor wants to add support for a new agent. They add an entry to the reg
 
 - **FR-001**: The agent registry MUST be defined in a data file bundled with the binary, not hardcoded in Swift source.
 - **FR-002**: Each agent entry MUST specify: identifier (string), display name (string), global skills path (string with `~` expansion), project directory name (string), and default link mode (string: symlink/hardlink/copy).
-- **FR-003**: The registry MUST include at minimum: claude-code, codex, cursor, gemini-cli, copilot, windsurf, amp, cline, aider, opencode.
+- **FR-003**: The registry MUST include at minimum: claude-code, codex, cursor, gemini-cli, copilot, windsurf, amp, cline, opencode (9 agents). Aider is excluded — it does not support SKILL.md natively.
 - **FR-004**: `skillsync target add --tool <name>` MUST validate against the registry and use the registered global skills path.
 - **FR-005**: `skillsync target add --path <path>` MUST continue to work for agents not in the registry.
 - **FR-006**: `skillsync target add --tool` with no argument or an unknown tool MUST list all registered agents with their identifiers and display names.
@@ -66,6 +66,6 @@ A contributor wants to add support for a new agent. They add an entry to the reg
 
 ### Measurable Outcomes
 
-- **SC-001**: SkillSync supports at least 10 agents via the registry at launch.
+- **SC-001**: SkillSync supports at least 9 agents via the registry at launch.
 - **SC-002**: Adding a new agent to the registry requires modifying only the data file — zero Swift source changes.
 - **SC-003**: All existing tests that reference `KnownTools` continue to pass after migration to the registry.

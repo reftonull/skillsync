@@ -93,11 +93,11 @@ public struct InfoFeature {
     return .init(
       name: input.name,
       path: skillRoot.path,
-      version: meta.int(section: "skill", key: "version") ?? 0,
-      state: meta.string(section: "skill", key: "state") ?? "active",
-      contentHash: meta.string(section: "skill", key: "content-hash"),
-      created: meta.string(section: "skill", key: "created"),
-      source: meta.string(section: "skill", key: "source"),
+      version: meta.skill.version ?? 0,
+      state: meta.skill.state ?? "active",
+      contentHash: meta.skill.contentHash,
+      created: meta.skill.created,
+      source: meta.skill.source,
       totalInvocations: counts.total,
       positive: counts.positive,
       negative: counts.negative

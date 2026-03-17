@@ -5,6 +5,32 @@ import Testing
 @testable import SkillSyncCLI
 import SkillSyncCore
 
+private let testEntries: [AgentRegistryEntry] = [
+  .init(
+    id: "claude-code", displayName: "Claude Code",
+    globalSkillsPath: "~/.claude/skills", projectDirectory: ".claude",
+    defaultLinkMode: "symlink"
+  ),
+  .init(
+    id: "codex", displayName: "Codex CLI",
+    globalSkillsPath: "~/.codex/skills", projectDirectory: ".codex",
+    defaultLinkMode: "symlink"
+  ),
+  .init(
+    id: "cursor", displayName: "Cursor",
+    globalSkillsPath: "~/.cursor/skills", projectDirectory: ".cursor",
+    defaultLinkMode: "hardlink"
+  ),
+]
+
+private let testRegistryClient = AgentRegistryClient(
+  entryFor: { id in testEntries.first { $0.id == id } },
+  allEntries: { testEntries },
+  projectDirectories: {
+    Dictionary(uniqueKeysWithValues: testEntries.map { ($0.id, $0.projectDirectory) })
+  }
+)
+
 extension BaseSuite {
   @Suite
   struct TargetCommandTests {
@@ -42,6 +68,7 @@ extension BaseSuite {
           currentDirectory: { URL(filePath: "/Users/blob/project", directoryHint: .isDirectory) }
         )
         $0.fileSystemClient = fileSystem.client
+        $0.agentRegistryClient = testRegistryClient
       }
 
       try await assertCommand(
@@ -111,6 +138,7 @@ extension BaseSuite {
           currentDirectory: { URL(filePath: "/Users/blob/project", directoryHint: .isDirectory) }
         )
         $0.fileSystemClient = fileSystem.client
+        $0.agentRegistryClient = testRegistryClient
       }
 
       try await assertCommand(
@@ -143,7 +171,13 @@ extension BaseSuite {
         ["target", "add", "--tool", "unknown"],
         error: {
           """
-          Unknown tool 'unknown'. Known tools: claude-code, codex, cursor.
+          Unknown tool 'unknown'. Available tools:
+
+            claude-code     Claude Code
+            codex           Codex CLI
+            cursor          Cursor
+
+          Use 'skillsync target add --path <path>' for agents not listed above.
           """
         },
         dependencies: {
@@ -152,6 +186,7 @@ extension BaseSuite {
             currentDirectory: { URL(filePath: "/Users/blob/project", directoryHint: .isDirectory) }
           )
           $0.fileSystemClient = fileSystem.client
+          $0.agentRegistryClient = testRegistryClient
         }
       )
     }

@@ -199,10 +199,10 @@ struct UpdateMetaFeatureTests {
         """
         [skill]
         state = "active"
-        flag = true
-
-        [stats]
-        total-invocations = 12
+        version = 12
+        content-hash = "sha256:abc"
+        created = "2026-02-06T00:00:00Z"
+        source = "hand-authored"
         """.utf8
       ),
       to: metaURL
@@ -214,9 +214,50 @@ struct UpdateMetaFeatureTests {
       try UpdateMetaFeature().read(metaURL: metaURL)
     }
 
-    expectNoDifference(document.string(section: "skill", key: "state"), "active")
-    expectNoDifference(document.bool(section: "skill", key: "flag"), true)
-    expectNoDifference(document.int(section: "stats", key: "total-invocations"), 12)
+    expectNoDifference(document.skill.state, "active")
+    expectNoDifference(document.skill.version, 12)
+    expectNoDifference(document.skill.contentHash, "sha256:abc")
+    expectNoDifference(document.skill.created, "2026-02-06T00:00:00Z")
+    expectNoDifference(document.skill.source, "hand-authored")
+  }
+
+  @Test
+  func readsUpstreamSection() throws {
+    let fileSystem = InMemoryFileSystem()
+    let metaURL = URL(filePath: "/Users/blob/.skillsync/skills/pdf/.meta.toml")
+    try fileSystem.createDirectory(
+      at: metaURL.deletingLastPathComponent(),
+      withIntermediateDirectories: true
+    )
+    try fileSystem.write(
+      Data(
+        """
+        [skill]
+        source = "github"
+
+        [upstream]
+        repo = "owner/repo"
+        skill-path = "skills/pdf"
+        ref = "main"
+        commit = "abc123"
+        base-content-hash = "sha256:def"
+        """.utf8
+      ),
+      to: metaURL
+    )
+
+    let document = try withDependencies {
+      $0.fileSystemClient = fileSystem.client
+    } operation: {
+      try UpdateMetaFeature().read(metaURL: metaURL)
+    }
+
+    expectNoDifference(document.skill.source, "github")
+    expectNoDifference(document.upstream.repo, "owner/repo")
+    expectNoDifference(document.upstream.skillPath, "skills/pdf")
+    expectNoDifference(document.upstream.ref, "main")
+    expectNoDifference(document.upstream.commit, "abc123")
+    expectNoDifference(document.upstream.baseContentHash, "sha256:def")
   }
 
   @Test
@@ -241,7 +282,7 @@ struct UpdateMetaFeatureTests {
       try UpdateMetaFeature().read(metaURL: invalidURL)
     }
 
-    expectNoDifference(missing.rawValue(section: "skill", key: "state"), nil)
-    expectNoDifference(invalid.rawValue(section: "skill", key: "state"), nil)
+    expectNoDifference(missing.skill.state, nil)
+    expectNoDifference(invalid.skill.state, nil)
   }
 }

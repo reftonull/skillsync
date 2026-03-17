@@ -27,15 +27,20 @@ public struct TargetAddFeature {
   }
 
   public enum Error: Swift.Error, Equatable, CustomStringConvertible {
-    case unknownTool(String)
+    case unknownTool(String, available: [AgentRegistryEntry])
     case duplicatePath(String)
     case projectRootNotFound
     case noProjectTargetsFound
 
     public var description: String {
       switch self {
-      case let .unknownTool(name):
-        return "Unknown tool '\(name)'. Known tools: claude-code, codex, cursor."
+      case let .unknownTool(name, available):
+        var message = "Unknown tool '\(name)'. Available tools:\n"
+        for entry in available {
+          message += "\n  \(entry.id.padding(toLength: 16, withPad: " ", startingAt: 0))\(entry.displayName)"
+        }
+        message += "\n\nUse 'skillsync target add --path <path>' for agents not listed above."
+        return message
       case let .duplicatePath(path):
         return "A target already exists for path: \(path)"
       case .projectRootNotFound:
@@ -48,6 +53,7 @@ public struct TargetAddFeature {
 
   @Dependency(\.pathClient) var pathClient
   @Dependency(\.fileSystemClient) var fileSystemClient
+  @Dependency(\.agentRegistryClient) var registry
 
   public init() {}
 
@@ -60,15 +66,15 @@ public struct TargetAddFeature {
 
     switch input.mode {
     case let .tool(tool):
-      guard let defaultPath = KnownTools.defaultPaths[tool] else {
-        throw Error.unknownTool(tool)
+      guard let entry = registry.entryFor(tool) else {
+        throw Error.unknownTool(tool, available: registry.allEntries())
       }
-      let resolved = resolvePath(defaultPath)
+      let resolved = resolvePath(entry.globalSkillsPath)
       guard !existingResolvedPaths.contains(resolved) else {
         throw Error.duplicatePath(resolved)
       }
       let id = uniqueID(preferred: tool, existing: Set(targets.map(\.id)))
-      let target = SyncTarget(id: id, path: defaultPath, source: .tool)
+      let target = SyncTarget(id: id, path: entry.globalSkillsPath, source: .tool)
       targets.append(target)
       added.append(target)
 
@@ -86,8 +92,9 @@ public struct TargetAddFeature {
       let projectRoot = try findProjectRoot()
       var anyDiscovered = false
       var seenPaths = existingResolvedPaths
-      for tool in KnownTools.projectDirectories.keys.sorted() {
-        guard let directoryName = KnownTools.projectDirectories[tool] else { continue }
+      let projectDirs = registry.projectDirectories()
+      for tool in projectDirs.keys.sorted() {
+        guard let directoryName = projectDirs[tool] else { continue }
         let toolRoot = projectRoot.appendingPathComponent(directoryName, isDirectory: true)
         guard fileSystemClient.fileExists(toolRoot.path), fileSystemClient.isDirectory(toolRoot.path) else {
           continue
@@ -151,6 +158,7 @@ public struct TargetAddFeature {
   private func findProjectRoot() throws -> URL {
     var current = pathClient.currentDirectory().standardizedFileURL
     var toolDirectoryCandidate: URL?
+    let projectDirNames = Set(registry.projectDirectories().values)
 
     while true {
       let gitDirectory = current.appendingPathComponent(".git", isDirectory: true)
@@ -158,7 +166,7 @@ public struct TargetAddFeature {
         return current
       }
 
-      if KnownTools.projectDirectories.values.contains(where: { toolDirectory in
+      if projectDirNames.contains(where: { toolDirectory in
         fileSystemClient.fileExists(
           current.appendingPathComponent(toolDirectory, isDirectory: true).path
         )

@@ -77,7 +77,7 @@ public struct ObserveFeature {
 
     let metaURL = skillRoot.appendingPathComponent(".meta.toml")
     let meta = try UpdateMetaFeature().read(metaURL: metaURL)
-    let version = meta.int(section: "skill", key: "version") ?? 0
+    let version = meta.skill.version ?? 0
     let timestamp = Self.formatDate(now)
 
     let logsRoot = storeRoot.appendingPathComponent("logs", isDirectory: true)
@@ -103,11 +103,11 @@ public struct ObserveFeature {
 
   private func append(record: LogRecord, to logURL: URL) throws {
     let encoder = JSONEncoder()
-    let line = String(decoding: try encoder.encode(record), as: UTF8.self)
+    let line = try String(decoding: encoder.encode(record), as: UTF8.self)
 
     let existing: String
     if fileSystemClient.fileExists(logURL.path) {
-      existing = String(decoding: try fileSystemClient.data(logURL), as: UTF8.self)
+      existing = try String(decoding: fileSystemClient.data(logURL), as: UTF8.self)
     } else {
       existing = ""
     }

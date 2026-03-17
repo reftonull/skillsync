@@ -3,88 +3,89 @@ import Foundation
 import TOMLDecoder
 
 public struct LoadSyncConfigFeature {
-    public struct Result: Equatable, Sendable {
-        public var targets: [SyncTarget]
-        public var observation: ObservationSettings
+  public struct Result: Equatable, Sendable {
+    public var targets: [SyncTarget]
+    public var observation: ObservationSettings
 
-        public init(
-            targets: [SyncTarget],
-            observation: ObservationSettings = .default
-        ) {
-            self.targets = targets
-            self.observation = observation
-        }
+    public init(
+      targets: [SyncTarget],
+      observation: ObservationSettings = .default
+    ) {
+      self.targets = targets
+      self.observation = observation
+    }
+  }
+
+  @Dependency(\.pathClient) var pathClient
+  @Dependency(\.fileSystemClient) var fileSystemClient
+
+  public init() {}
+
+  public func run() throws -> Result {
+    let configPath = pathClient.skillsyncRoot().appendingPathComponent("config.toml")
+
+    guard fileSystemClient.fileExists(configPath.path) else {
+      return Result(targets: [], observation: .default)
     }
 
-    @Dependency(\.pathClient) var pathClient
-    @Dependency(\.fileSystemClient) var fileSystemClient
-
-    public init() {}
-
-    public func run() throws -> Result {
-        let configPath = pathClient.skillsyncRoot().appendingPathComponent("config.toml")
-
-        guard fileSystemClient.fileExists(configPath.path) else {
-            return Result(targets: [], observation: .default)
-        }
-
-        let data = try fileSystemClient.data(configPath)
-        guard let contents = String(data: data, encoding: .utf8) else {
-            return Result(targets: [], observation: .default)
-        }
-
-        return Result(
-            targets: Self.parseTargets(from: contents),
-            observation: Self.parseObservationSettings(from: contents)
-        )
+    let data = try fileSystemClient.data(configPath)
+    guard let contents = String(data: data, encoding: .utf8) else {
+      return Result(targets: [], observation: .default)
     }
 
-    // MARK: - TOML Decodable types
+    return Result(
+      targets: Self.parseTargets(from: contents),
+      observation: Self.parseObservationSettings(from: contents)
+    )
+  }
 
-    private struct ConfigFile: Decodable {
-        var targets: [TargetEntry]?
-        var observation: ObservationSection?
+  // MARK: - TOML Decodable types
 
-        struct TargetEntry: Decodable {
-            var id: String?
-            var path: String?
-            var source: String?
-        }
+  private struct ConfigFile: Decodable {
+    var targets: [TargetEntry]?
+    var observation: ObservationSection?
 
-        struct ObservationSection: Decodable {
-            var mode: String?
-        }
+    struct TargetEntry: Decodable {
+      var id: String?
+      var path: String?
+      var source: String?
     }
 
-    // MARK: - Parsing via TOMLDecoder
+    struct ObservationSection: Decodable {
+      var mode: String?
+    }
+  }
 
-    static func parseTargets(from contents: String) -> [SyncTarget] {
-        guard let config = try? TOMLDecoder().decode(ConfigFile.self, from: contents) else {
-            return []
-        }
+  // MARK: - Parsing via TOMLDecoder
 
-        return (config.targets ?? []).compactMap { entry in
-            guard
-                let id = entry.id,
-                let path = entry.path,
-                let sourceRaw = entry.source,
-                let source = SyncTarget.Source(rawValue: sourceRaw)
-            else {
-                return nil
-            }
-            return SyncTarget(id: id, path: path, source: source)
-        }
+  static func parseTargets(from contents: String) -> [SyncTarget] {
+    guard let config = try? TOMLDecoder().decode(ConfigFile.self, from: contents) else {
+      return []
     }
 
-    static func parseObservationSettings(from contents: String) -> ObservationSettings {
-        guard let config = try? TOMLDecoder().decode(ConfigFile.self, from: contents) else {
-            return .default
-        }
-
-        let mode = config.observation?.mode
-            .flatMap(ObservationMode.init(rawValue:))
-            ?? ObservationSettings.default.mode
-
-        return ObservationSettings(mode: mode)
+    return (config.targets ?? []).compactMap { entry in
+      guard
+        let id = entry.id,
+        let path = entry.path,
+        let sourceRaw = entry.source,
+        let source = SyncTarget.Source(rawValue: sourceRaw)
+      else {
+        return nil
+      }
+      return SyncTarget(id: id, path: path, source: source)
     }
+  }
+
+  static func parseObservationSettings(from contents: String) -> ObservationSettings {
+    guard let config = try? TOMLDecoder().decode(ConfigFile.self, from: contents) else {
+      return .default
+    }
+
+    let mode =
+      config.observation?.mode
+      .flatMap(ObservationMode.init(rawValue:))
+      ?? ObservationSettings.default.mode
+
+    return ObservationSettings(mode: mode)
+  }
 }
